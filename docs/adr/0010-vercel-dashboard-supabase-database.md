@@ -36,3 +36,6 @@ Verified on the development project: the advisor warnings disappeared, and new `
 
 ## Update 2026-10-02: Railway
 API and Redis run on Railway. Networking behaviour is to be verified on the first deployment, not assumed: whether the API reaches Redis over the private network (`REDIS_IP_FAMILY` option exists if it needs IPv6), and whether Railway can reach Supabase's direct address or needs the pooled one.
+
+## Update 2026-10-06: TLS to Supabase
+Supabase's database certificate chains to Supabase's own CA. The API verifies TLS (no `no-verify`) using the CA certificate supplied in `DATABASE_SSL_CA`. Certificate verification is never disabled for real data.

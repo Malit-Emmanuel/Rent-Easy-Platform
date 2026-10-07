@@ -1,5 +1,6 @@
 import { Global, Inject, Injectable, Module } from '@nestjs/common';
 import { Pool } from 'pg';
+import { poolConfigFromEnv } from './db-config';
 
 export const PG_POOL = 'PG_POOL';
 
@@ -23,12 +24,7 @@ export class AuditService {
 @Global()
 @Module({
   providers: [
-    { provide: PG_POOL, useFactory: () => new Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: Number(process.env.PG_POOL_MAX ?? 5),            // serverless: many instances, so keep each pool small
-      idleTimeoutMillis: 10_000,
-      ssl: process.env.DATABASE_SSL_CA ? { ca: process.env.DATABASE_SSL_CA } : undefined,
-    }) },
+    { provide: PG_POOL, useFactory: () => new Pool(poolConfigFromEnv()) },
     AuditService,
   ],
   exports: [PG_POOL, AuditService],

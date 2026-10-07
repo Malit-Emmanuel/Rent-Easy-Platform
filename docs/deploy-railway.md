@@ -10,7 +10,8 @@ Nothing here has been deployed yet. Items marked VERIFY must be checked on the f
 ## Environment variables (API service)
 | Variable | Value |
 |---|---|
-| `DATABASE_URL` | Supabase connection string with `?sslmode=require`. Use the pooled (session-mode) string if Railway cannot reach the direct address. VERIFY |
+| `DATABASE_URL` | Supabase **session pooler** string (host `...pooler.supabase.com`, port 5432). Verified: Railway reaches the pooler. Use letters and digits only in the password so no URL-encoding is needed |
+| `DATABASE_SSL_CA` | Supabase's CA certificate as text (Project Settings > Database > SSL Configuration > Download certificate; open the `.crt` in Notepad and paste everything, including the BEGIN and END lines). Without it the connection fails with `self-signed certificate in certificate chain` |
 | `REDIS_URL` | Reference Railway's Redis variable, e.g. `${{Redis.REDIS_URL}}`. Prefer the private-network URL. VERIFY the exact variable name in the Railway dashboard |
 | `REDIS_IP_FAMILY` | Leave empty. Set to `6` (or `0`) only if the API logs show it cannot reach Redis on the private network. VERIFY |
 | `JWT_SECRET`, `OTP_PEPPER` | Long random values (32+ characters), different per environment |
@@ -41,3 +42,10 @@ Not part of the image. Apply `db/migrations/*.sql` in order to Supabase (Supabas
 - Railway project `rent-easy`, environment `staging`, personal workspace. Redis (Railway's verified template) is deployed with a generated password; its private-network `REDIS_URL` is available to reference from the API service.
 - Redis was created in region `sfo` (San Francisco). The database is in Supabase eu-west-1 (Ireland) and users are in Kenya, so the plan is to run Redis and the API in a European region. Region choice is awaiting the founder's confirmation; Redis holds no data yet, so it can be recreated freely.
 - The API service is not created yet: the GitHub repository must contain the code first, and Railway needs access to it.
+
+## Findings from the first deployments (2026-10-06)
+- The Docker build and app start work on Railway; all routes mapped.
+- Redis over the private network works (queue jobs ran).
+- Railway reaches Supabase's session pooler (IPv4 is not a problem there).
+- `DATABASE_URL` with unencoded special characters in the password is rejected as "Invalid URL". Use a letters-and-digits password.
+- Supabase's certificate is signed by Supabase's own CA, so verified TLS needs `DATABASE_SSL_CA`. The pg library ignores an explicit CA when the URL contains `?sslmode=...`; the app now strips `sslmode` and sets TLS itself (`apps/api/src/modules/audit/db-config.ts`).
