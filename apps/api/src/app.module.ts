@@ -9,10 +9,11 @@ import { IdentityModule } from './modules/identity/identity.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ConsentService } from './modules/consent/consent.service';
 import { EventsModule } from './modules/events/events.module';
+import { SupplyModule } from './modules/supply/supply.module';
 import { ProvidersModule } from './providers/providers.module';
 
 @Module({
-  imports: [AuditModule, EventsModule, ProvidersModule, AuthModule, IdentityModule, JobsModule],
+  imports: [AuditModule, EventsModule, ProvidersModule, AuthModule, IdentityModule, JobsModule, SupplyModule],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }, { provide: APP_GUARD, useClass: RolesGuard }, ConsentService],
 })

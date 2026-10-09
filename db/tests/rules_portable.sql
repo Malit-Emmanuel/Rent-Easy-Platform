@@ -51,5 +51,34 @@ BEGIN
     failed := failed || 'revoked badge without reason accepted';
   EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
 
+  -- S1: coordinates must be in Kenya (catches swapped latitude/longitude)
+  BEGIN
+    INSERT INTO supply.properties(org_id,name,address_text,location)
+      VALUES ('11111111-1111-1111-1111-111111111111','Swapped','somewhere', extensions.st_point(-1.29,36.8)::extensions.geography);
+    failed := failed || 'swapped coordinates accepted';
+  EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+
+  -- S1: the same building cannot be recorded twice by one organisation (case-insensitive), but can be re-added after archiving
+  BEGIN
+    INSERT INTO supply.properties(org_id,name,address_text) VALUES ('11111111-1111-1111-1111-111111111111','p','ADDR');
+    failed := failed || 'duplicate property accepted';
+  EXCEPTION WHEN unique_violation THEN passed := passed + 1; END;
+  UPDATE supply.properties SET archived_at = now() WHERE id='22222222-2222-2222-2222-222222222222';
+  BEGIN
+    INSERT INTO supply.properties(org_id,name,address_text) VALUES ('11111111-1111-1111-1111-111111111111','P','addr');
+    passed := passed + 1;
+  EXCEPTION WHEN OTHERS THEN failed := failed || ('re-adding after archive rejected: ' || SQLERRM); END;
+
+  -- S1: unit labels are unique per property (case-insensitive) and reusable after archiving
+  BEGIN
+    INSERT INTO supply.units(property_id,label,bedrooms) VALUES ('22222222-2222-2222-2222-222222222222','a1',1);
+    failed := failed || 'duplicate unit label accepted';
+  EXCEPTION WHEN unique_violation THEN passed := passed + 1; END;
+  UPDATE supply.units SET archived_at = now() WHERE id='33333333-3333-3333-3333-333333333333';
+  BEGIN
+    INSERT INTO supply.units(property_id,label,bedrooms) VALUES ('22222222-2222-2222-2222-222222222222','A1',2);
+    passed := passed + 1;
+  EXCEPTION WHEN OTHERS THEN failed := failed || ('unit label reuse after archive rejected: ' || SQLERRM); END;
+
   RAISE EXCEPTION 'RULES: % passed, % failed %', passed, cardinality(failed), failed;
 END $$;

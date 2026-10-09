@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
@@ -36,6 +37,7 @@ export default function Org() {
     <>
       <h1>{org.name}</h1>
       <p className="msg">{t('kind_' + org.kind)}</p>
+      <p><Link href={`/orgs/${orgId}/properties`}>{t('propertiesLink')} →</Link></p>
       <h2>{t('members')}</h2>
       {members.map((m) => (
         <div className="card row" key={m.userId + m.role}>

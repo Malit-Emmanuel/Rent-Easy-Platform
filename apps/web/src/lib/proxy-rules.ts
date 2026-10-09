@@ -1,5 +1,5 @@
 // What the browser may reach through the dashboard's server routes. Everything else is refused.
-const ALLOWED_PREFIXES = ['me', 'orgs', 'invitations', 'admin/verifications'];
+const ALLOWED_PREFIXES = ['me', 'orgs', 'invitations', 'nodes', 'admin/verifications'];
 
 export function isAllowedProxyPath(segments: string[]): boolean {
   if (!segments.length || segments.some((s) => !s || s === '.' || s === '..' || /[\\\0%]/.test(s))) return false;
