@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import FilePanel from '@/components/FilePanel';
 import { useI18n } from '@/components/I18n';
 import { api } from '@/lib/client';
 import { readPosition } from '@/lib/position';
@@ -15,7 +16,7 @@ export default function PropertyPage() {
   const [name, setName] = useState(''), [address, setAddress] = useState(''), [nodeId, setNodeId] = useState(''), [lat, setLat] = useState(''), [lon, setLon] = useState('');
   const [label, setLabel] = useState(''), [beds, setBeds] = useState('1');
   const [editing, setEditing] = useState<string | null>(null), [editLabel, setEditLabel] = useState(''), [editBeds, setEditBeds] = useState('');
-  const [note, setNote] = useState(''), [error, setError] = useState('');
+  const [note, setNote] = useState(''), [error, setError] = useState(''), [mediaFor, setMediaFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const r = await api(base);
@@ -81,9 +82,13 @@ export default function PropertyPage() {
         </form>
       ) : <p className="msg">{p.addressText}</p>}
 
+      <h2>{t('files')}</h2>
+      <FilePanel orgId={orgId} propertyId={propertyId} kinds={['document', 'photo', 'video']} canWrite={canWrite} canArchive={canArchive} />
+
       <h2>{t('units')}</h2>
       {units.length === 0 ? <p className="msg">{t('noUnits')}</p> : units.map((u) => (
-        <div className="card row" key={u.id}>
+        <div key={u.id}>
+        <div className="card row">
           {editing === u.id ? (
             <>
               <input aria-label={t('unitLabel')} value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={40} style={{ width: 120 }} />
@@ -94,10 +99,13 @@ export default function PropertyPage() {
           ) : (
             <>
               <span><strong>{u.label}</strong> · {u.bedrooms} {t('bedrooms').toLowerCase()}</span><span className="spacer" />
+              <button type="button" className="link" onClick={() => setMediaFor(mediaFor === u.id ? null : u.id)}>{t('mediaToggle')}</button>
               {canWrite && <button type="button" className="link" onClick={() => { setEditing(u.id); setEditLabel(u.label); setEditBeds(String(u.bedrooms)); }}>{t('edit')}</button>}
               {canArchive && <button type="button" className="link" onClick={() => archiveUnit(u.id)}>{t('archive')}</button>}
             </>
           )}
+        </div>
+        {mediaFor === u.id && <FilePanel orgId={orgId} propertyId={propertyId} unitId={u.id} kinds={['photo', 'video']} canWrite={canWrite} canArchive={canArchive} />}
         </div>
       ))}
       {canWrite && (

@@ -1,11 +1,9 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query, Req } from '@nestjs/common';
 import { Roles } from '../../common/rbac';
+import { ARCHIVE, READ, WRITE } from './supply.roles';
 import { SupplyService } from './supply.service';
 import { checkProperty, checkUnit, pageLimit } from './supply.validation';
 
-const READ = ['manager_admin', 'manager_staff', 'landlord', 'agent'] as const;
-const WRITE = READ;                                   // anyone in the organisation who manages supply
-const ARCHIVE = ['manager_admin', 'landlord'] as const;   // removing things is for owners and administrators
 const uuid = () => new ParseUUIDPipe();
 const ok = <T>(c: { value: T; errors: string[] }): T => { if (c.errors.length) throw new BadRequestException(c.errors.join('; ')); return c.value; };
 

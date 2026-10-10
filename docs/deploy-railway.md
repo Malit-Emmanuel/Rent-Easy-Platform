@@ -49,3 +49,13 @@ Not part of the image. Apply `db/migrations/*.sql` in order to Supabase (Supabas
 - Railway reaches Supabase's session pooler (IPv4 is not a problem there).
 - `DATABASE_URL` with unencoded special characters in the password is rejected as "Invalid URL". Use a letters-and-digits password.
 - Supabase's certificate is signed by Supabase's own CA, so verified TLS needs `DATABASE_SSL_CA`. The pg library ignores an explicit CA when the URL contains `?sslmode=...`; the app now strips `sslmode` and sets TLS itself (`apps/api/src/modules/audit/db-config.ts`).
+
+## File storage variables (slice S2)
+| Variable | Value |
+|---|---|
+| `SUPABASE_URL` | Your project address, `https://<project-ref>.supabase.co` (Supabase: Project Settings, API) |
+| `SUPABASE_SECRET_KEY` | A secret key from Supabase: Project Settings, API Keys, "Secret keys" (starts `sb_secret_`). **Secret.** Never put it in the repo or in chat |
+| `SUPABASE_STORAGE_BUCKET` | Leave unset (default `property-files`), or set it to match the bucket name |
+
+Without the first two, uploads return "File storage is not set up yet" and nothing else is affected.
+First-deploy checks for S2: upload a small PDF and a photo from the dashboard; confirm the file opens through its 5-minute link and that a direct, unsigned storage address does not work.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { isAllowedProxyPath as ok, isSameOrigin as same } from './proxy-rules';
 
 test('allows dashboard resources only', () => {
-  for (const p of [['me'], ['me', 'verification'], ['orgs', 'x', 'members'], ['invitations', 'accept'], ['nodes'], ['orgs', 'x', 'properties', 'y', 'units'], ['admin', 'verifications', 'queue']]) assert.equal(ok(p), true, p.join('/'));
+  for (const p of [['me'], ['me', 'verification'], ['orgs', 'x', 'members'], ['invitations', 'accept'], ['nodes'], ['document-types'], ['orgs', 'x', 'properties', 'y', 'files', 'z', 'link'], ['orgs', 'x', 'properties', 'y', 'units'], ['admin', 'verifications', 'queue']]) assert.equal(ok(p), true, p.join('/'));
   for (const p of [['auth', 'otp', 'request'], ['webhooks', 'identity', 'fake'], ['internal', 'cron', 'x'], ['health'], ['admin'], []]) assert.equal(ok(p), false, p.join('/'));
 });
 test('rejects traversal and odd segments', () => {
