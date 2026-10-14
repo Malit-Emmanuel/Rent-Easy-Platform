@@ -124,5 +124,26 @@ BEGIN
     EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
   END;
 
+  -- S3: import run rules
+  BEGIN
+    INSERT INTO identity.users(id, phone) VALUES ('77777777-7777-7777-7777-777777777777', '+254700000088');
+    BEGIN INSERT INTO supply.import_runs(org_id,created_by,content_sha256,status,row_count,error_count,warning_count,plan,issues)
+      VALUES ('11111111-1111-1111-1111-111111111111','77777777-7777-7777-7777-777777777777','x','weird',1,0,0,'{}','[]');
+      failed := failed || 'import run with an invalid status accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO supply.import_runs(org_id,created_by,content_sha256,status,row_count,error_count,warning_count,plan,issues)
+      VALUES ('11111111-1111-1111-1111-111111111111','77777777-7777-7777-7777-777777777777','x','committed',1,0,0,'{}','[]');
+      failed := failed || 'committed run without a commit time accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO supply.import_runs(org_id,created_by,content_sha256,status,row_count,error_count,warning_count,plan,issues,committed_at)
+      VALUES ('11111111-1111-1111-1111-111111111111','77777777-7777-7777-7777-777777777777','x','committed',5,2,0,'{}','[]',now());
+      failed := failed || 'committed run with errors accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO supply.import_runs(org_id,created_by,content_sha256,row_count,error_count,warning_count,plan,issues)
+      VALUES ('11111111-1111-1111-1111-111111111111','77777777-7777-7777-7777-777777777777','x',5,0,0,'{}','[]');
+      passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid planned run rejected: ' || SQLERRM); END;
+  END;
+
   RAISE EXCEPTION 'RULES: % passed, % failed %', passed, cardinality(failed), failed;
 END $$;

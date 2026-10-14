@@ -39,6 +39,7 @@ export default function Properties() {
     <>
       <p><Link href={`/orgs/${orgId}`}>← {t('backToOrg')}</Link></p>
       <h1>{t('properties')}</h1>
+      {canWrite && <p><Link href={`/orgs/${orgId}/properties/import`}>{t('importLink')} →</Link></p>}
       {items === null ? <p className="msg">{t('loading')}</p> : items.length === 0 ? <p className="msg">{t('noProperties')}</p> :
         items.map((p) => (
           <div className="card" key={p.id}>

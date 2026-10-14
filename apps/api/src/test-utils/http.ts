@@ -6,6 +6,7 @@ export async function bootApp() {
   const { SMS_PORT } = await import('../providers/ports');
   const { PG_POOL } = await import('../modules/audit/audit.service');
   const app = await NestFactory.create(AppModule, { logger: false, rawBody: true });
+  (await import('../app.setup')).configureApp(app);
   await app.listen(0);
   const base = `http://127.0.0.1:${app.getHttpServer().address().port}`;
   const sms: any = app.get(SMS_PORT), pool: any = app.get(PG_POOL);
