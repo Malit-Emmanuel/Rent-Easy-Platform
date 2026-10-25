@@ -14,7 +14,7 @@ export default function PropertyPage() {
   const [p, setP] = useState<any>(null), [units, setUnits] = useState<any[]>([]), [nodes, setNodes] = useState<any[]>([]), [denied, setDenied] = useState(false);
   const [canWrite, setCanWrite] = useState(false), [canArchive, setCanArchive] = useState(false);
   const [name, setName] = useState(''), [address, setAddress] = useState(''), [nodeId, setNodeId] = useState(''), [lat, setLat] = useState(''), [lon, setLon] = useState('');
-  const [label, setLabel] = useState(''), [beds, setBeds] = useState('1');
+  const [label, setLabel] = useState(''), [beds, setBeds] = useState('1'), [floor, setFloor] = useState(''), [editFloor, setEditFloor] = useState('');
   const [editing, setEditing] = useState<string | null>(null), [editLabel, setEditLabel] = useState(''), [editBeds, setEditBeds] = useState('');
   const [note, setNote] = useState(''), [error, setError] = useState(''), [mediaFor, setMediaFor] = useState<string | null>(null);
 
@@ -46,13 +46,13 @@ export default function PropertyPage() {
   async function addUnit(e: FormEvent) {
     e.preventDefault(); setError(''); setNote('');
     if (!Number.isInteger(Number(beds))) { setError(t('numbersOnly')); return; }
-    const r = await api(`${base}/units`, { method: 'POST', body: { label, bedrooms: Number(beds) } });
-    if (r.status === 201) { setLabel(''); load(); } else setError(r.status === 409 ? t('duplicateUnit') : r.status === 400 ? String(r.data?.message ?? t('genericError')) : t('genericError'));
+    const r = await api(`${base}/units`, { method: 'POST', body: { label, bedrooms: Number(beds), floor: floor || null } });
+    if (r.status === 201) { setLabel(''); setFloor(''); load(); } else setError(r.status === 409 ? t('duplicateUnit') : r.status === 400 ? String(r.data?.message ?? t('genericError')) : t('genericError'));
   }
   async function saveUnit(id: string) {
     setError('');
     if (!Number.isInteger(Number(editBeds))) { setError(t('numbersOnly')); return; }
-    const r = await api(`${base}/units/${id}`, { method: 'PATCH', body: { label: editLabel, bedrooms: Number(editBeds) } });
+    const r = await api(`${base}/units/${id}`, { method: 'PATCH', body: { label: editLabel, bedrooms: Number(editBeds), floor: editFloor || null } });
     if (r.status === 200) { setEditing(null); load(); } else setError(r.status === 409 ? t('duplicateUnit') : r.status === 400 ? String(r.data?.message ?? t('genericError')) : t('genericError'));
   }
   async function archiveUnit(id: string) {
@@ -93,14 +93,15 @@ export default function PropertyPage() {
             <>
               <input aria-label={t('unitLabel')} value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={40} style={{ width: 120 }} />
               <input aria-label={t('bedrooms')} inputMode="numeric" value={editBeds} onChange={(e) => setEditBeds(e.target.value)} style={{ width: 80 }} />
+              <input aria-label={t('floor')} value={editFloor} onChange={(e) => setEditFloor(e.target.value)} maxLength={20} style={{ width: 80 }} />
               <button type="button" onClick={() => saveUnit(u.id)}>{t('save')}</button>
               <button type="button" className="link" onClick={() => setEditing(null)}>{t('cancel')}</button>
             </>
           ) : (
             <>
-              <span><strong>{u.label}</strong> · {u.bedrooms} {t('bedrooms').toLowerCase()}</span><span className="spacer" />
+              <span><strong>{u.label}</strong> · {u.bedrooms} {t('bedrooms').toLowerCase()}{u.floor ? ` · ${t('floor')} ${u.floor}` : ''}</span><span className="spacer" />
               <button type="button" className="link" onClick={() => setMediaFor(mediaFor === u.id ? null : u.id)}>{t('mediaToggle')}</button>
-              {canWrite && <button type="button" className="link" onClick={() => { setEditing(u.id); setEditLabel(u.label); setEditBeds(String(u.bedrooms)); }}>{t('edit')}</button>}
+              {canWrite && <button type="button" className="link" onClick={() => { setEditing(u.id); setEditLabel(u.label); setEditBeds(String(u.bedrooms)); setEditFloor(u.floor ?? ''); }}>{t('edit')}</button>}
               {canArchive && <button type="button" className="link" onClick={() => archiveUnit(u.id)}>{t('archive')}</button>}
             </>
           )}
@@ -112,6 +113,7 @@ export default function PropertyPage() {
         <form onSubmit={addUnit}>
           <h2>{t('addUnit')}</h2>
           <label htmlFor="ul">{t('unitLabel')}</label><input id="ul" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={40} required />
+          <label htmlFor="uf">{t('floor')} ({t('optional')})</label><input id="uf" value={floor} onChange={(e) => setFloor(e.target.value)} maxLength={20} />
           <label htmlFor="ub">{t('bedrooms')}</label><input id="ub" inputMode="numeric" value={beds} onChange={(e) => setBeds(e.target.value)} required />
           <p className="msg">{t('bedsitterHint')}</p>
           <button>{t('addUnit')}</button>

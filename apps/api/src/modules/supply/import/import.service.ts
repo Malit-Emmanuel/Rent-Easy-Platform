@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../../audit/audit.service';
 import { cleanName } from '../files/files.rules';
-import { PlannedProperty, RowIssue, planImport } from './importer';
+import { PlannedProperty, RowIssue, planImport, propertyKey } from './importer';
 
 const MAX_STORED_ISSUES = 1000, SHOWN_ISSUES = 200, RUN_TTL_HOURS = 24, MAX_RUNS_PER_HOUR = 30;
 
@@ -39,7 +39,7 @@ export class ImportService {
 
     if (plan.properties.length) {
       const ex = await this.pool.query(`SELECT id, lower(name) n, lower(address_text) a FROM supply.properties WHERE org_id=$1 AND archived_at IS NULL`, [orgId]);
-      const idByKey = new Map<string, string>(ex.rows.map((r: any) => [`${r.n}|${r.a}`, r.id]));
+      const idByKey = new Map<string, string>(ex.rows.map((r: any) => [propertyKey(r.n, r.a), r.id]));
       const existingId = new Map<string, string>();
       for (const p of plan.properties) { const id = idByKey.get(p.key); if (id) { p.exists = true; existingId.set(p.key, id); } }
       if (existingId.size) {
@@ -97,16 +97,16 @@ export class ImportService {
         [orgId, runId, props.map((p) => p.name), props.map((p) => p.addressText), props.map((p) => p.nodeId ?? null), props.map((p) => p.latitude ?? null), props.map((p) => p.longitude ?? null)]);
 
       const found = await c.query(`SELECT id, lower(name) n, lower(address_text) a FROM supply.properties WHERE org_id=$1 AND archived_at IS NULL AND lower(name) = ANY($2::text[])`, [orgId, props.map((p) => p.name.toLowerCase())]);
-      const idByKey = new Map<string, string>(found.rows.map((r: any) => [`${r.n}|${r.a}`, r.id]));
-      const pid: string[] = [], label: string[] = [], bed: number[] = [];
+      const idByKey = new Map<string, string>(found.rows.map((r: any) => [propertyKey(r.n, r.a), r.id]));
+      const pid: string[] = [], label: string[] = [], bed: number[] = [], flr: (string | null)[] = [];
       for (const p of props) {
         const id = idByKey.get(p.key); if (!id) throw new Error('planned property missing after insert');
-        for (const u of p.units) { pid.push(id); label.push(u.label); bed.push(u.bedrooms); }
+        for (const u of p.units) { pid.push(id); label.push(u.label); bed.push(u.bedrooms); flr.push(u.floor ?? null); }
       }
       const units = await c.query(
-        `INSERT INTO supply.units (property_id, label, bedrooms, import_run_id)
-         SELECT x.pid, x.label, x.bed, $4 FROM unnest($1::uuid[], $2::text[], $3::int[]) AS x(pid, label, bed)
-         ON CONFLICT (property_id, lower(label)) WHERE archived_at IS NULL DO NOTHING RETURNING id`, [pid, label, bed, runId]);
+        `INSERT INTO supply.units (property_id, label, bedrooms, floor, import_run_id)
+         SELECT x.pid, x.label, x.bed, x.floor, $5 FROM unnest($1::uuid[], $2::text[], $3::int[], $4::text[]) AS x(pid, label, bed, floor)
+         ON CONFLICT (property_id, lower(label)) WHERE archived_at IS NULL DO NOTHING RETURNING id`, [pid, label, bed, flr, runId]);
 
       result = { propertiesCreated: inserted.rowCount ?? 0, propertiesReused: props.length - (inserted.rowCount ?? 0), unitsCreated: units.rowCount ?? 0, unitsSkipped: label.length - (units.rowCount ?? 0) };
       await c.query(`UPDATE supply.import_runs SET status='committed', committed_at=now(), committed_by=$2, result=$3 WHERE id=$1`, [runId, actorId, JSON.stringify(result)]);

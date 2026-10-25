@@ -90,14 +90,14 @@ export class SupplyService {
   async listUnits(orgId: string, propertyId: string, limit: number) {
     await this.assertProperty(orgId, propertyId);
     return (await this.pool.query(
-      `SELECT id, label, bedrooms, created_at AS "createdAt" FROM supply.units WHERE property_id=$1 AND archived_at IS NULL ORDER BY lower(label), id LIMIT $2`, [propertyId, limit])).rows;
+      `SELECT id, label, bedrooms, floor, created_at AS "createdAt" FROM supply.units WHERE property_id=$1 AND archived_at IS NULL ORDER BY lower(label), id LIMIT $2`, [propertyId, limit])).rows;
   }
 
   async createUnit(orgId: string, propertyId: string, actorId: string, v: UnitInput) {
     await this.assertProperty(orgId, propertyId);
     let row: any;
     try {
-      row = (await this.pool.query(`INSERT INTO supply.units (property_id, label, bedrooms) VALUES ($1,$2,$3) RETURNING id, label, bedrooms, created_at AS "createdAt"`, [propertyId, v.label, v.bedrooms])).rows[0];
+      row = (await this.pool.query(`INSERT INTO supply.units (property_id, label, bedrooms, floor) VALUES ($1,$2,$3,$4) RETURNING id, label, bedrooms, floor, created_at AS "createdAt"`, [propertyId, v.label, v.bedrooms, v.floor ?? null])).rows[0];
     } catch (e) { this.translate(e); }
     await this.audit.record({ actorId, action: 'unit.created', subjectType: 'unit', subjectId: row.id, metadata: { orgId, propertyId } });
     return row;
@@ -108,10 +108,11 @@ export class SupplyService {
     const sets: string[] = []; const vals: unknown[] = [unitId, propertyId]; let i = 3;
     if ('label' in v) { sets.push(`label=$${i++}`); vals.push(v.label); }
     if ('bedrooms' in v) { sets.push(`bedrooms=$${i++}`); vals.push(v.bedrooms); }
+    if ('floor' in v) { sets.push(`floor=$${i++}`); vals.push(v.floor); }
     sets.push('updated_at=now()');
     let row: any;
     try {
-      row = (await this.pool.query(`UPDATE supply.units SET ${sets.join(', ')} WHERE id=$1 AND property_id=$2 AND archived_at IS NULL RETURNING id, label, bedrooms, created_at AS "createdAt"`, vals)).rows[0];
+      row = (await this.pool.query(`UPDATE supply.units SET ${sets.join(', ')} WHERE id=$1 AND property_id=$2 AND archived_at IS NULL RETURNING id, label, bedrooms, floor, created_at AS "createdAt"`, vals)).rows[0];
     } catch (e) { this.translate(e); }
     if (!row) throw new NotFoundException('Unit not found');
     await this.audit.record({ actorId, action: 'unit.updated', subjectType: 'unit', subjectId: unitId, metadata: { orgId, propertyId, fields: Object.keys(v) } });

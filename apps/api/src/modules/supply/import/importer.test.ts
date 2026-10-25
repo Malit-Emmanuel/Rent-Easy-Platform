@@ -75,3 +75,49 @@ test('a 500-unit messy sheet with 12 planted defects reports exactly those 12 ro
   assert.deepEqual([...errRows].sort((a, b) => a - b), [...bad.keys()].sort((a, b) => a - b));
   assert.equal(p.counts.errors, bad.size); assert.equal(p.counts.units, 500 - bad.size); assert.ok(p.counts.properties <= 25 * 25);
 });
+
+import { floorUnitName, normaliseFloor, splitAddress } from './importer';
+
+test('floor text is tidied and a floor-only unit gets a readable name', () => {
+  for (const [s, f] of [['1', '1'], ['Floor 2', '2'], ['3rd floor', '3'], ['G', 'Ground'], ['ground floor', 'Ground'], ['', ''], ['Mezzanine', 'Mezzanine']] as const) assert.equal(normaliseFloor(s), f, s);
+  assert.equal(floorUnitName('2'), 'Floor 2'); assert.equal(floorUnitName('Ground'), 'Ground floor');
+});
+
+test('an apartment number inside an address is taken out of the address', () => {
+  assert.deepEqual(splitAddress('Rose Court, Apt 4B, Argwings Kodhek Rd'), { address: 'Rose Court, Argwings Kodhek Rd', apartment: '4B' });
+  assert.deepEqual(splitAddress('Argwings Kodhek Rd'), { address: 'Argwings Kodhek Rd' });
+});
+
+test('apartment number is the preferred unit name; floor is kept as an extra', () => {
+  const p = planImport('Property,Address,Apartment No,Floor,Bedrooms\nPalm Court,Kodhek Rd,A1,1,2\nPalm Court,Kodhek Rd,A2,1,2', nodes);
+  assert.equal(p.counts.errors, 0); assert.equal(p.counts.warnings, 0);
+  assert.deepEqual(p.properties[0].units.map((u) => [u.label, u.floor]), [['A1', '1'], ['A2', '1']]);
+});
+
+test('floor alone is accepted as the unit name, with a warning', () => {
+  const p = planImport('Property,Address,Floor,Bedrooms\nPalm Court,Kodhek Rd,1,2\nPalm Court,Kodhek Rd,2,2', nodes);
+  assert.equal(p.counts.errors, 0); assert.equal(p.properties[0].units[0].label, 'Floor 1'); assert.equal(p.issues.filter((i) => i.code === 'floor_only').length, 2);
+});
+
+test('two units on the same floor with no apartment numbers cannot be told apart', () => {
+  const p = planImport('Property,Address,Floor,Bedrooms\nPalm Court,Kodhek Rd,1,2\nPalm Court,Kodhek Rd,1,2', nodes);
+  assert.equal(p.counts.errors, 1); assert.ok(p.issues.find((i) => i.code === 'duplicate_unit')!.message.includes('Add apartment numbers'));
+});
+
+test('a row with neither apartment nor floor is an error', () => {
+  const p = planImport('Property,Address,Unit,Floor,Bedrooms\nPalm Court,Kodhek Rd,,,2', nodes);
+  assert.equal(p.counts.errors, 1); assert.equal(p.issues[0].column, 'unit');
+});
+
+test('apartment number found in the address is used when the unit cell is empty', () => {
+  const p = planImport('Property,Address,Unit,Bedrooms\nPalm Court,"Kodhek Rd, Apt 4B",,2', nodes);
+  assert.equal(p.properties[0].units[0].label, '4B'); assert.equal(p.properties[0].addressText, 'Kodhek Rd');
+  assert.ok(p.issues.some((i) => i.code === 'address_detail'));
+});
+
+test('a repeated column and one name at two addresses are warned about', () => {
+  const a = planImport('Property,Address,Unit,Bedrooms,Property\nPalm Court,Kodhek Rd,A1,2,Other', nodes);
+  assert.ok(a.issues.some((i) => i.code === 'duplicate_column') && a.counts.errors === 0);
+  const b = planImport('Property,Address,Unit,Bedrooms\nPalm Court,Kodhek Rd,A1,2\nPalm Court,Waiyaki Way,A1,2', nodes);
+  assert.ok(b.issues.some((i) => i.code === 'same_name_other_address'));
+});

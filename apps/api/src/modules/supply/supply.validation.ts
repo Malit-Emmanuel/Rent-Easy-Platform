@@ -2,7 +2,7 @@
 export const KENYA = { latMin: -5.1, latMax: 5.6, lonMin: 33.5, lonMax: 42.0 };
 
 export interface PropertyInput { name?: string; addressText?: string; nodeId?: number | null; latitude?: number | null; longitude?: number | null }
-export interface UnitInput { label?: string; bedrooms?: number }
+export interface UnitInput { label?: string; bedrooms?: number; floor?: string | null }
 export interface Checked<T> { value: T; errors: string[] }
 
 const clean = (s: unknown) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : undefined);
@@ -48,6 +48,10 @@ export function checkUnit(body: any, mode: 'create' | 'update'): Checked<UnitInp
   if (b.bedrooms !== undefined || mode === 'create') {
     if (!Number.isInteger(b.bedrooms) || b.bedrooms < 0 || b.bedrooms > 20) errors.push('bedrooms must be a whole number from 0 to 20 (0 means a bedsitter or studio)');
     else v.bedrooms = b.bedrooms;
+  }
+  if (b.floor !== undefined) {
+    if (b.floor === null || b.floor === '') v.floor = null;
+    else { const f = clean(typeof b.floor === 'number' ? String(b.floor) : b.floor); if (!f || f.length > 20) errors.push('floor must be 1 to 20 characters (or empty to clear)'); else v.floor = f; }
   }
   if (mode === 'update' && !errors.length && Object.keys(v).length === 0) errors.push('nothing to update');
   return { value: v, errors };

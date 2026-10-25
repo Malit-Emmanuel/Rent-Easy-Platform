@@ -145,5 +145,23 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN failed := failed || ('valid planned run rejected: ' || SQLERRM); END;
   END;
 
+  -- S3 follow-up: unit floor rules
+  DECLARE fl_pid uuid; BEGIN
+    SELECT id INTO fl_pid FROM supply.properties LIMIT 1;
+    IF fl_pid IS NULL THEN
+      INSERT INTO supply.properties(id,org_id,name,address_text) VALUES (gen_random_uuid(),'11111111-1111-1111-1111-111111111111','Floor Test','Floor Test Rd') RETURNING id INTO fl_pid;
+    END IF;
+    BEGIN INSERT INTO supply.units(property_id,label,bedrooms,floor) VALUES (fl_pid,'FL1',1,'');
+      failed := failed || 'empty floor accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO supply.units(property_id,label,bedrooms,floor) VALUES (fl_pid,'FL2',1,repeat('x',21));
+      failed := failed || 'overlong floor accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO supply.units(property_id,label,bedrooms,floor) VALUES (fl_pid,'FL3',1,'Ground'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid floor rejected: ' || SQLERRM); END;
+    BEGIN INSERT INTO supply.units(property_id,label,bedrooms) VALUES (fl_pid,'FL4',1); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('unit without floor rejected: ' || SQLERRM); END;
+  END;
+
   RAISE EXCEPTION 'RULES: % passed, % failed %', passed, cardinality(failed), failed;
 END $$;

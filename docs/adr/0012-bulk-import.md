@@ -17,3 +17,9 @@ Status: Accepted | Date: 2026-10-14 | Part of B3 slice S3
 - The matching rules were tuned on synthetic and template data. The one real sample received (a scraped sales-listing file) had none of the needed columns, so a real manager's rental sheet is still needed to tune it.
 - If an import fails and is retried, the earlier preview stays usable until it expires.
 - Data typed into a spreadsheet is stored as text. Any future export to spreadsheets must neutralise cells that start with `=`, `+`, `-` or `@` to prevent formula injection.
+
+## Addendum: apartment numbers first, floor optional
+- The unit name is the **apartment number**. A **floor** is an optional extra stored on the unit (migration 0009).
+- If a row has no apartment number, an apartment number found inside the address is used; failing that, the floor becomes the name ("Floor 2") with a warning.
+- Apartment numbers found in an address are removed from the building address, so the same building is recognised across files.
+- Two floor-only rows with the same floor are an error ("Add apartment numbers to tell them apart").
