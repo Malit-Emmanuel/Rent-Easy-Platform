@@ -44,7 +44,7 @@ export default function Properties() {
         items.map((p) => (
           <div className="card" key={p.id}>
             <Link href={`/orgs/${orgId}/properties/${p.id}`}><strong>{p.name}</strong></Link>
-            <div className="msg">{p.addressText}{p.nodeName ? ` · ${p.nodeName}` : ''} · {p.unitCount} {t('unitCount')}</div>
+            <div className="msg">{p.addressText}{p.nodeName ? ` · ${p.nodeName}` : ''} · {p.unitCount} {p.unitCount === 1 ? t('unitOne') : t('unitCount')}</div>
           </div>
         ))}
       {canWrite && (

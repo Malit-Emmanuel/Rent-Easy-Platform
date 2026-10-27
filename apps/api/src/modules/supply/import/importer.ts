@@ -48,13 +48,24 @@ export function normaliseFloor(raw: string): string {
 /** The name shown for a unit that has only a floor. */
 export const floorUnitName = (floor: string) => (/^\d+$/.test(floor) ? `Floor ${floor}` : `${floor} floor`);
 
-/** Splits "Rose Court, Apt 4B, Argwings Kodhek Rd" into the street part and the apartment number found inside it. */
-export function splitAddress(address: string): { address: string; apartment?: string } {
-  const a = address.replace(/\s+/g, ' ').trim();
+const tidyAddr = (s: string) => s.replace(/\s+/g, ' ').replace(/\s+,/g, ',').replace(/^[\s,.-]+|[\s,.-]+$/g, '');
+
+/** Splits "Rose Court, Apt 4B, 6th Floor, Argwings Kodhek Rd" into the street part, the apartment number and the floor found inside it. */
+export function splitAddress(address: string): { address: string; apartment?: string; floor?: string } {
+  let a = address.replace(/\s+/g, ' ').trim(), floor: string | undefined;
+  const fl = a.match(/(?:^|[\s,(])(?:(ground|g|\d{1,3}(?:st|nd|rd|th)?)\s*floor|floor\s*(\d{1,3}))\b[\s,)]*/i);
+  if (fl) {
+    const rest = tidyAddr(a.slice(0, fl.index!) + ' ' + a.slice(fl.index! + fl[0].length));
+    if (rest.length >= 3) { floor = normaliseFloor(fl[1] ?? fl[2]); a = rest; }
+  }
+  const out = splitApartment(a);
+  return floor ? { ...out, floor } : out;
+}
+function splitApartment(a: string): { address: string; apartment?: string } {
   const m = a.match(/(?:^|[\s,(])(?:apartment|apt|flat|house|unit|door)\.?\s*(?:no\.?|number|#)?\s*([A-Za-z]?\d{1,4}[A-Za-z]?)\b[\s,)]*/i);
-  if (!m) return { address: a };
-  const rest = (a.slice(0, m.index!) + ' ' + a.slice(m.index! + m[0].length)).replace(/\s+/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '').replace(/\s+,/g, ',');
-  return rest.length >= 3 ? { address: rest, apartment: m[1].toUpperCase() } : { address: a };
+  if (!m) return { address: tidyAddr(a) };
+  const rest = tidyAddr(a.slice(0, m.index!) + ' ' + a.slice(m.index! + m[0].length));
+  return rest.length >= 3 ? { address: rest, apartment: m[1].toUpperCase() } : { address: tidyAddr(a) };
 }
 export const propertyKey = (name: string, address: string) => `${name.replace(/\s+/g, ' ').trim().toLowerCase()}|${splitAddress(address).address.toLowerCase()}`;
 
@@ -95,9 +106,9 @@ export function planImport(csvText: string, nodes: { id: number; name: string }[
     const row = idx + 2;                                    // header is row 1, like the spreadsheet shows it
     const name = get(r, 'property').replace(/\s+/g, ' ').trim(), rawAddress = get(r, 'address').replace(/\s+/g, ' ').trim();
     const split = splitAddress(rawAddress), address = split.address;
-    const floor = normaliseFloor(get(r, 'floor'));
+    const floor = normaliseFloor(get(r, 'floor')) || split.floor || '';
     let label = get(r, 'unit').replace(/\s+/g, ' ').trim();
-    if (rawAddress && address !== rawAddress) add(row, 'warning', 'address_detail', `The address contained an apartment number, which is not part of the building address. Used "${address}".`, 'address');
+    if (rawAddress && address !== rawAddress) add(row, 'warning', 'address_detail', `The address contained an apartment number or floor, which is not part of the building address. Used "${address}".`, 'address');
     if (!label && split.apartment) { label = split.apartment; add(row, 'warning', 'unit_from_address', `No unit number, so apartment "${label}" found in the address is used.`, 'unit'); }
     if (!label && floor) { label = floorUnitName(floor); add(row, 'warning', 'floor_only', `No apartment number, so the floor is used as the unit name ("${label}"). Add apartment numbers to tell units apart.`, 'unit'); }
     let ok = true;

@@ -121,3 +121,18 @@ test('a repeated column and one name at two addresses are warned about', () => {
   const b = planImport('Property,Address,Unit,Bedrooms\nPalm Court,Kodhek Rd,A1,2\nPalm Court,Waiyaki Way,A1,2', nodes);
   assert.ok(b.issues.some((i) => i.code === 'same_name_other_address'));
 });
+
+test('a floor written inside the address moves to the Floor field', () => {
+  assert.deepEqual(splitAddress('6th Floor, Westlands Road'), { address: 'Westlands Road', floor: '6' });
+  assert.deepEqual(splitAddress('2nd Floor Galana Road'), { address: 'Galana Road', floor: '2' });
+  assert.deepEqual(splitAddress('Ground Floor Ngong Road,'), { address: 'Ngong Road', floor: 'Ground' });
+  assert.deepEqual(splitAddress('Ngong Road, Floor 3'), { address: 'Ngong Road', floor: '3' });
+  assert.deepEqual(splitAddress('Rose Court, Apt 4B, 6th Floor, Kodhek Rd'), { address: 'Rose Court, Kodhek Rd', apartment: '4B', floor: '6' });
+  assert.deepEqual(splitAddress('Ngong Road,'), { address: 'Ngong Road' });
+  assert.deepEqual(splitAddress('Floor Road'), { address: 'Floor Road' });
+});
+
+test('the same building matches whether or not the address carries a floor', () => {
+  const p = planImport('Property,Address,Unit,Bedrooms\nSenteu Plaza,2nd Floor Galana Road,A2,2\nSenteu Plaza,Galana Road,A3,2', nodes);
+  assert.equal(p.counts.properties, 1); assert.equal(p.properties[0].units[0].floor, '2'); assert.equal(p.properties[0].addressText, 'Galana Road');
+});
