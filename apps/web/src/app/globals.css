@@ -1,11 +1,11 @@
 /* Zuri Home design tokens. Change the values in :root to re-theme the whole app. */
 :root {
   --fg:#1d2023; --muted:#656c72; --line:#dcdedf; --bg:#eceeee; --surface:#f8f8f7; --raised:#ffffff;
-  --brand:#2f3337; --brand-fg:#ffffff; --link:#2f3337; --accent:#0b6b4f; --err:#a31f1f; --warn:#8a5a00;
+  --brand:#38bdf8; --brand-fg:#06283d; --link:#0369a1; --accent:#0284c7; --err:#a31f1f; --warn:#8a5a00;
   --radius:14px; --radius-sm:8px; --shadow:0 1px 2px rgba(20,24,28,.06), 0 6px 18px rgba(20,24,28,.05);
   --mono:ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,monospace;
 }
-@media (prefers-color-scheme: dark) { :root { --fg:#e8eaec; --muted:#9aa2a8; --line:#2c3236; --bg:#111416; --surface:#181c1f; --raised:#1e2326; --brand:#e8eaec; --brand-fg:#16191b; --link:#e8eaec; --accent:#3fbf94; --err:#ff8a8a; --warn:#e0b050; --shadow:none; } }
+@media (prefers-color-scheme: dark) { :root { --fg:#e8eaec; --muted:#9aa2a8; --line:#2c3236; --bg:#111416; --surface:#181c1f; --raised:#1e2326; --brand:#7dd3fc; --brand-fg:#06283d; --link:#7dd3fc; --accent:#38bdf8; --err:#ff8a8a; --warn:#e0b050; --shadow:none; } }
 * { box-sizing:border-box; }
 body { margin:0; font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--fg); background:var(--bg); }
 a { color:var(--link); text-underline-offset:3px; }
