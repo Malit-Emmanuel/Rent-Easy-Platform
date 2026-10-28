@@ -4,7 +4,7 @@ export const LANGS: Lang[] = ['en', 'sw'];
 // Swahili strings need review by a native speaker before the pilot.
 export const dict = {
   en: {
-    appName: 'Housing Platform', signIn: 'Sign in', signOut: 'Sign out', language: 'Language',
+    appName: 'Zuri Home', appTagline: 'Verified rentals', importNav: 'Import', overview: 'Overview', yourOrgs: 'Your organisations', totalProperties: 'Properties', totalUnits: 'Units', nextStep: 'Next step', nextImport: 'Add your properties and units', nextImportHint: 'Import a spreadsheet, or add them one by one.', search: 'Search properties', allAreas: 'All areas', noMatches: 'No properties match your search.', devNotice: 'Test mode: sign-in codes are not sent by SMS yet. They appear in the server log.', unverifiedTag: 'Not yet verified', signIn: 'Sign in', signOut: 'Sign out', language: 'Language',
     phoneLabel: 'Mobile number', phoneHint: 'e.g. 0712 345 678', sendCode: 'Send code', codeLabel: '6-digit code',
     verify: 'Verify', back: 'Back', codeSent: 'We sent a code by SMS. It expires in 5 minutes.',
     badPhone: 'Enter a valid Kenyan mobile number.', badCode: 'That code is wrong or expired.', tooMany: 'Too many attempts. Try again later.',
@@ -46,7 +46,7 @@ export const dict = {
     st_REVIEW_REQUIRED: 'Awaiting review', st_EXPIRED: 'Expired',
   },
   sw: {
-    appName: 'Jukwaa la Makazi', signIn: 'Ingia', signOut: 'Toka', language: 'Lugha',
+    appName: 'Zuri Home', appTagline: 'Nyumba zilizothibitishwa', importNav: 'Leta', overview: 'Muhtasari', yourOrgs: 'Mashirika yako', totalProperties: 'Mali', totalUnits: 'Vyumba', nextStep: 'Hatua inayofuata', nextImport: 'Ongeza mali na vyumba vyako', nextImportHint: 'Leta lahajedwali, au ongeza moja moja.', search: 'Tafuta mali', allAreas: 'Maeneo yote', noMatches: 'Hakuna mali zinazolingana.', devNotice: 'Hali ya majaribio: nambari za kuingia hazitumwi kwa SMS bado. Zinaonekana kwenye kumbukumbu za seva.', unverifiedTag: 'Haijathibitishwa', signIn: 'Ingia', signOut: 'Toka', language: 'Lugha',
     phoneLabel: 'Namba ya simu', phoneHint: 'mf. 0712 345 678', sendCode: 'Tuma msimbo', codeLabel: 'Msimbo wa tarakimu 6',
     verify: 'Thibitisha', back: 'Rudi', codeSent: 'Tumekutumia msimbo kwa SMS. Utaisha baada ya dakika 5.',
     badPhone: 'Weka namba sahihi ya simu ya Kenya.', badCode: 'Msimbo huo si sahihi au umeisha muda.', tooMany: 'Majaribio mengi mno. Jaribu tena baadaye.',

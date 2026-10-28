@@ -44,6 +44,7 @@ export default function Login() {
         </form>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+      <p className="notice">{t('devNotice')}</p>
     </>
   );
 }

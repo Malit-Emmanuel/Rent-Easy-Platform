@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import PropertyCard from '@/components/PropertyCard';
 import { api } from '@/lib/client';
 import { readPosition } from '@/lib/position';
 
@@ -10,6 +11,7 @@ export default function Properties() {
   const { t } = useI18n();
   const { orgId } = useParams<{ orgId: string }>();
   const [items, setItems] = useState<any[] | null>(null), [nodes, setNodes] = useState<any[]>([]), [denied, setDenied] = useState(false), [canWrite, setCanWrite] = useState(false);
+  const [q, setQ] = useState(''), [area, setArea] = useState('');
   const [name, setName] = useState(''), [address, setAddress] = useState(''), [nodeId, setNodeId] = useState(''), [lat, setLat] = useState(''), [lon, setLon] = useState(''), [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -37,16 +39,22 @@ export default function Properties() {
   if (denied) return <p className="error">{t('noAccess')}</p>;
   return (
     <>
-      <p><Link href={`/orgs/${orgId}`}>← {t('backToOrg')}</Link></p>
+      <p className="eyebrow">{t('overview')}</p>
       <h1>{t('properties')}</h1>
-      {canWrite && <p><Link href={`/orgs/${orgId}/properties/import`}>{t('importLink')} →</Link></p>}
-      {items === null ? <p className="msg">{t('loading')}</p> : items.length === 0 ? <p className="msg">{t('noProperties')}</p> :
-        items.map((p) => (
-          <div className="card" key={p.id}>
-            <Link href={`/orgs/${orgId}/properties/${p.id}`}><strong>{p.name}</strong></Link>
-            <div className="msg">{p.addressText}{p.nodeName ? ` · ${p.nodeName}` : ''} · {p.unitCount} {p.unitCount === 1 ? t('unitOne') : t('unitCount')}</div>
-          </div>
-        ))}
+      <div className="toolbar">
+        <input aria-label={t('search')} placeholder={t('search')} value={q} onChange={(e) => setQ(e.target.value)} />
+        <select aria-label={t('allAreas')} value={area} onChange={(e) => setArea(e.target.value)}>
+          <option value="">{t('allAreas')}</option>
+          {[...new Set((items ?? []).map((p) => p.nodeName).filter(Boolean))].sort().map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <span className="spacer" />
+        {canWrite && <Link className="btn" href={`/orgs/${orgId}/properties/import`}>{t('importLink')}</Link>}
+      </div>
+      {items === null ? <p className="msg">{t('loading')}</p> : items.length === 0 ? <div className="empty">{t('noProperties')}</div> : (() => {
+        const shown = items.filter((p) => (!area || p.nodeName === area) && (`${p.name} ${p.addressText}`.toLowerCase().includes(q.trim().toLowerCase())));
+        return shown.length === 0 ? <div className="empty">{t('noMatches')}</div> :
+          <div className="grid">{shown.map((p) => <PropertyCard key={p.id} orgId={orgId} p={p} units={t('unitCount')} one={t('unitOne')} tag={p.nodeName ?? undefined} />)}</div>;
+      })()}
       {canWrite && (
         <>
           <h2>{t('addProperty')}</h2>
