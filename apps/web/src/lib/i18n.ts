@@ -44,6 +44,12 @@ export const dict = {
     err_importState: 'This preview can no longer be confirmed (already confirmed, expired, or it has errors). Check the file again.', importFailed: 'The import could not be completed. Nothing was saved.',
     st_PENDING: 'Pending', st_IN_PROGRESS: 'In progress', st_VERIFIED: 'Verified', st_FAILED: 'Failed',
     st_REVIEW_REQUIRED: 'Awaiting review', st_EXPIRED: 'Expired',
+    propVerif: 'Property verification', pvNone: 'Not verified', pvSubmitted: 'Waiting for a reviewer', pvIn_review: 'Being reviewed', pvNeeds_changes: 'Changes needed', pvApproved: 'Verified', pvRejected: 'Not approved', pvAppealOpen: 'Appeal in review',
+    pvVerifiedUntil: 'Verified until', pvDue: 'A decision is expected by', pvRequest: 'Request verification', pvAppeal: 'Appeal this decision', pvAppealHint: 'You have one appeal, within {n} days. A different reviewer will decide it.',
+    pvMissingTitle: 'Upload these documents first', pvMissing_title_deed_or_lease: 'Title deed or lease agreement', pvMissing_management_authorisation: 'Letter authorising you to manage this property',
+    pvIdNeeded: 'Verify your identity first (see ID verification on the home page).', pvAlreadyOpen: 'A request is already open for this property.', pvRequested: 'Request sent. A reviewer will look at it soon.', pvAppealed: 'Appeal sent.',
+    pvReason: 'Reason', pvNote: 'Reviewer note', pvEvidenceFrozen: 'Documents are locked while the request is being reviewed.',
+    rc_doc_unreadable: 'A document cannot be read', rc_doc_owner_mismatch: 'Owner on the document does not match', rc_doc_expired: 'A document has expired', rc_authorisation_missing: 'No letter of authority', rc_property_mismatch: 'Document is for a different property', rc_suspected_forgery: 'Document looks altered', rc_other: 'Other reason',
   },
   sw: {
     appName: 'Zuri Home', appTagline: 'Nyumba zilizothibitishwa', importNav: 'Leta', bedsitter: 'Bedsitter / studio', overview: 'Muhtasari', yourOrgs: 'Mashirika yako', totalProperties: 'Mali', totalUnits: 'Vyumba', nextStep: 'Hatua inayofuata', nextImport: 'Ongeza mali na vyumba vyako', nextImportHint: 'Leta lahajedwali, au ongeza moja moja.', search: 'Tafuta mali', allAreas: 'Maeneo yote', noMatches: 'Hakuna mali zinazolingana.', devNotice: 'Hali ya majaribio: nambari za kuingia hazitumwi kwa SMS bado. Zinaonekana kwenye kumbukumbu za seva.', unverifiedTag: 'Haijathibitishwa', signIn: 'Ingia', signOut: 'Toka', language: 'Lugha',
@@ -86,6 +92,12 @@ export const dict = {
     err_importState: 'Hakiki hii haiwezi kuthibitishwa tena (imeshathibitishwa, imeisha muda, au ina makosa). Kagua faili tena.', importFailed: 'Uletaji haukukamilika. Hakuna kilichohifadhiwa.',
     st_PENDING: 'Inasubiri', st_IN_PROGRESS: 'Inaendelea', st_VERIFIED: 'Imethibitishwa', st_FAILED: 'Imeshindwa',
     st_REVIEW_REQUIRED: 'Inasubiri mapitio', st_EXPIRED: 'Imeisha muda',
+    propVerif: 'Uthibitisho wa mali', pvNone: 'Haijathibitishwa', pvSubmitted: 'Inasubiri mkaguzi', pvIn_review: 'Inakaguliwa', pvNeeds_changes: 'Marekebisho yanahitajika', pvApproved: 'Imethibitishwa', pvRejected: 'Haikukubaliwa', pvAppealOpen: 'Rufaa inakaguliwa',
+    pvVerifiedUntil: 'Imethibitishwa hadi', pvDue: 'Uamuzi unatarajiwa kufikia', pvRequest: 'Omba uthibitisho', pvAppeal: 'Kata rufaa', pvAppealHint: 'Una rufaa moja, ndani ya siku {n}. Mkaguzi mwingine ataamua.',
+    pvMissingTitle: 'Pakia hati hizi kwanza', pvMissing_title_deed_or_lease: 'Hati miliki au mkataba wa upangaji', pvMissing_management_authorisation: 'Barua inayokuruhusu kusimamia mali hii',
+    pvIdNeeded: 'Thibitisha utambulisho wako kwanza (tazama uthibitisho wa kitambulisho kwenye ukurasa wa mwanzo).', pvAlreadyOpen: 'Ombi tayari liko wazi kwa mali hii.', pvRequested: 'Ombi limetumwa. Mkaguzi ataliangalia hivi karibuni.', pvAppealed: 'Rufaa imetumwa.',
+    pvReason: 'Sababu', pvNote: 'Maelezo ya mkaguzi', pvEvidenceFrozen: 'Hati zimefungwa wakati ombi linakaguliwa.',
+    rc_doc_unreadable: 'Hati haisomeki', rc_doc_owner_mismatch: 'Mmiliki kwenye hati hailingani', rc_doc_expired: 'Hati imeisha muda', rc_authorisation_missing: 'Hakuna barua ya idhini', rc_property_mismatch: 'Hati ni ya mali nyingine', rc_suspected_forgery: 'Hati inaonekana kubadilishwa', rc_other: 'Sababu nyingine',
   },
 } as const;
 export type Key = keyof typeof dict.en;

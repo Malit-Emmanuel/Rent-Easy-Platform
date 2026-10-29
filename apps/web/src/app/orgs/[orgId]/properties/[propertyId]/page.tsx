@@ -5,6 +5,7 @@ import { Fragment, FormEvent, useCallback, useEffect, useState } from 'react';
 import FilePanel from '@/components/FilePanel';
 import { useI18n } from '@/components/I18n';
 import PageHead from '@/components/PageHead';
+import VerificationCard from '@/components/VerificationCard';
 import { api } from '@/lib/client';
 import { readPosition } from '@/lib/position';
 
@@ -81,6 +82,8 @@ export default function PropertyPage() {
           <div className="row"><button>{t('save')}</button>{canArchive && <button type="button" className="danger" onClick={archiveProperty}>{t('archive')}</button>}</div>
         </form>
       ) : <p className="panel msg">{p.addressText}</p>}
+
+      <VerificationCard orgId={orgId} propertyId={propertyId} canWrite={canWrite} />
 
       <h2>{t('files')}</h2>
       <FilePanel orgId={orgId} propertyId={propertyId} kinds={['document', 'photo', 'video']} canWrite={canWrite} canArchive={canArchive} />

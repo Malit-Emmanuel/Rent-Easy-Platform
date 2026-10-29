@@ -8,7 +8,9 @@ const PROPERTY_SELECT = `
          CASE WHEN p.location IS NULL THEN NULL ELSE extensions.st_y(p.location::extensions.geometry) END AS latitude,
          CASE WHEN p.location IS NULL THEN NULL ELSE extensions.st_x(p.location::extensions.geometry) END AS longitude,
          (SELECT count(*) FROM supply.units u WHERE u.property_id = p.id AND u.archived_at IS NULL)::int AS "unitCount",
-         p.created_at AS "createdAt"
+         p.created_at AS "createdAt",
+         (SELECT c.status FROM verification.cases c WHERE c.property_id = p.id ORDER BY c.submitted_at DESC, c.id LIMIT 1) AS "caseStatus",
+         (SELECT max(b.expires_at) FROM verification.badges b WHERE b.subject_type='property' AND b.subject_id = p.id AND b.level='t1_documented' AND b.revoked_at IS NULL AND b.expires_at > now()) AS "verifiedUntil"
     FROM supply.properties p LEFT JOIN supply.nodes n ON n.id = p.node_id`;
 
 /** Every query below is locked to the organisation in the URL, so one organisation can never reach another's records by guessing ids. */

@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
-import PropertyCard, { PropertyRow } from '@/components/PropertyCard';
+import PropertyCard, { PropertyRow, cardState } from '@/components/PropertyCard';
 import { api } from '@/lib/client';
 
 interface OrgRow { id: string; name: string; kind: string; roles: string[]; props: PropertyRow[] }
@@ -53,7 +53,7 @@ export default function Home() {
           <section key={o.id}>
             <div className="row"><h2 style={{ margin: '28px 0 4px' }}>{o.name}</h2><span className="spacer" /><Link href={`/orgs/${o.id}/properties`}>{t('propertiesLink')} →</Link></div>
             <div className="msg" style={{ marginBottom: 12 }}>{t('kind_' + o.kind)} · {o.roles.map((r) => t('role_' + r)).join(', ')}</div>
-            {o.props.length > 0 && <div className="hscroll">{o.props.slice(0, 8).map((p) => <PropertyCard key={p.id} orgId={o.id} p={p} units={t('unitCount')} one={t('unitOne')} tag={p.nodeName ?? undefined} />)}</div>}
+            {o.props.length > 0 && <div className="hscroll">{o.props.slice(0, 8).map((p) => <PropertyCard key={p.id} orgId={o.id} p={p} units={t('unitCount')} one={t('unitOne')} tag={p.nodeName ?? undefined} state={cardState(p, t)} />)}</div>}
           </section>
         ))}
       <h2>{t('createOrg')}</h2>
