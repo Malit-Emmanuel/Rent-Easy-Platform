@@ -58,8 +58,8 @@ export default function Properties() {
       {canWrite && (
         <>
           <h2>{t('addProperty')}</h2>
-          <form onSubmit={create}>
-            <label htmlFor="pn">{t('propertyName')}</label>
+          <form onSubmit={create} className="panel">
+            <label htmlFor="pn" style={{ marginTop: 0 }}>{t('propertyName')}</label>
             <input id="pn" value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={120} required />
             <label htmlFor="pa">{t('address')}</label>
             <input id="pa" value={address} onChange={(e) => setAddress(e.target.value)} minLength={3} maxLength={300} required />

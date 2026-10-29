@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 
 const REJECT_REASONS = ['id_mismatch', 'face_mismatch', 'liveness_failed', 'document_invalid', 'duplicate_identity', 'provider_error', 'manual_reject'];
@@ -22,7 +23,7 @@ export default function Admin() {
   if (denied) return <p className="error">{t('noAccess')}</p>;
   return (
     <>
-      <h1>{t('admin')}</h1>
+      <PageHead eyebrow={t('appName')} title={t('admin')} />
       {items === null ? <p className="msg">{t('loading')}</p> : items.length === 0 ? <p className="msg">{t('emptyQueue')}</p> :
         items.map((i) => (
           <div className="card" key={i.id}>

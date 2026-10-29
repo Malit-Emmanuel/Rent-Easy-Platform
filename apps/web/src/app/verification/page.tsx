@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 
 export default function Verification() {
@@ -17,9 +18,9 @@ export default function Verification() {
   const latest = s?.latest;
   return (
     <>
-      <h1>{t('verification')}</h1>
+      <PageHead eyebrow={t('appName')} title={t('verification')} />
       {!s ? <p className="msg">{t('loading')}</p> : (
-        <div className="card">
+        <div className="panel">
           <p><strong>{t('status')}:</strong> <span className="badge">{s.verified ? t('verified') : latest ? t('st_' + latest.status) : t('notVerified')}</span></p>
           {s.verified && s.badgeExpiresAt && <p className="msg">{t('expiresOn')} {new Date(s.badgeExpiresAt).toLocaleDateString()}</p>}
           {link && <p><a href={link} target="_blank" rel="noopener noreferrer">{t('continueVerification')}</a></p>}

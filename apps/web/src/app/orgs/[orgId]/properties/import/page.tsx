@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 import { commitError, fileProblem, Issue, orderIssues } from '@/lib/import';
 
@@ -39,17 +40,15 @@ export default function ImportPage() {
   const shown = showAll ? issues : issues.slice(0, 50);
   return (
     <>
-      <p><Link href={`/orgs/${orgId}/properties`}>← {t('properties')}</Link></p>
-      <h1>{t('importTitle')}</h1>
+      <PageHead back={{ href: `/orgs/${orgId}/properties`, label: t('properties') }} eyebrow={t('importLink')} title={t('importTitle')}><a className="btn ghost" href="/unit_import_template.csv" download>{t('downloadTemplate')}</a></PageHead>
       <p className="msg">{t('importIntro')}</p>
-      <div className="card">
-        <p>{t('importStep1')}</p><p>{t('importStep2')}</p><p>{t('importStep3')}</p>
-        <p><a href="/unit_import_template.csv" download>{t('downloadTemplate')}</a></p>
+      <div className="steps">
+        {[t('importStep1'), t('importStep2'), t('importStep3')].map((x, i) => <div className="step" key={i}><span className="n">{i + 1}</span><p>{x.replace(/^\d\.\s*/, '')}</p></div>)}
       </div>
 
       {!done && (
-        <div className="card">
-          <label htmlFor="csv">{t('chooseFile')}</label>
+        <div className="panel">
+          <label htmlFor="csv" style={{ marginTop: 0 }}>{t('chooseFile')}</label>
           <input id="csv" ref={input} type="file" accept=".csv,.txt,text/csv,text/plain" />
           <button type="button" onClick={check} disabled={busy}>{busy && !run ? t('checking') : t('checkFile')}</button>
           {error && <p className="error" role="alert">{error}</p>}
@@ -59,7 +58,7 @@ export default function ImportPage() {
       {run && (
         <>
           <h2>{t('importSummary')}</h2>
-          <div className="card">
+          <div className="panel">
             <p>{t('rowsRead')}: <strong>{run.counts.rows}</strong></p>
             <p>{t('newProperties')}: <strong>{run.counts.newProperties}</strong> · {t('existingProps')}: <strong>{run.counts.existingProperties}</strong></p>
             <p>{t('newUnits')}: <strong>{run.counts.newUnits}</strong> · {t('skippedUnits')}: <strong>{run.counts.skippedUnits}</strong></p>
@@ -69,11 +68,11 @@ export default function ImportPage() {
           </div>
 
           {issues.length > 0 && (
-            <div className="card">
+            <div className="panel">
               {shown.map((i, n) => (
-                <div key={n} className="row" style={{ marginBottom: 4 }}>
-                  <span className="badge">{i.severity === 'error' ? t('errorsLabel') : t('warningsLabel')}</span>
-                  <span>{i.row > 0 ? `${t('rowLabel')} ${i.row}: ` : ''}{i.message}</span>
+                <div key={n} className="issue">
+                  <span className={i.severity === 'error' ? 'dot err' : 'dot'} aria-hidden />
+                  <span><span className="msg">{i.severity === 'error' ? t('errorsLabel') : t('warningsLabel')}{i.row > 0 ? ` · ${t('rowLabel')} ${i.row}` : ''}</span><br />{i.message}</span>
                 </div>
               ))}
               {issues.length > 50 && <button type="button" className="link" onClick={() => setShowAll(!showAll)}>{showAll ? t('showFewer') : `${t('showAll')} (${issues.length})`}</button>}

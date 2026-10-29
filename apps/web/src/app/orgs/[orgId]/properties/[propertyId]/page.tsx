@@ -1,9 +1,10 @@
 'use client';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { Fragment, FormEvent, useCallback, useEffect, useState } from 'react';
 import FilePanel from '@/components/FilePanel';
 import { useI18n } from '@/components/I18n';
+import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 import { readPosition } from '@/lib/position';
 
@@ -65,10 +66,9 @@ export default function PropertyPage() {
   if (!p) return <p className="msg">{t('loading')}</p>;
   return (
     <>
-      <p><Link href={`/orgs/${orgId}/properties`}>← {t('properties')}</Link></p>
-      <h1>{p.name}</h1>
+      <PageHead back={{ href: `/orgs/${orgId}/properties`, label: t('properties') }} eyebrow={p.nodeName ?? undefined} title={p.name}><span className="badge">{units.length} {units.length === 1 ? t('unitOne') : t('unitCount')}</span></PageHead>
       {canWrite ? (
-        <form onSubmit={save}>
+        <form onSubmit={save} className="panel">
           <label htmlFor="n">{t('propertyName')}</label><input id="n" value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={120} required />
           <label htmlFor="a">{t('address')}</label><input id="a" value={address} onChange={(e) => setAddress(e.target.value)} minLength={3} maxLength={300} required />
           <label htmlFor="z">{t('node')}</label>
@@ -80,37 +80,45 @@ export default function PropertyPage() {
           <p className="msg">{t('positionHint')}</p>
           <div className="row"><button>{t('save')}</button>{canArchive && <button type="button" className="danger" onClick={archiveProperty}>{t('archive')}</button>}</div>
         </form>
-      ) : <p className="msg">{p.addressText}</p>}
+      ) : <p className="panel msg">{p.addressText}</p>}
 
       <h2>{t('files')}</h2>
       <FilePanel orgId={orgId} propertyId={propertyId} kinds={['document', 'photo', 'video']} canWrite={canWrite} canArchive={canArchive} />
 
       <h2>{t('units')}</h2>
-      {units.length === 0 ? <p className="msg">{t('noUnits')}</p> : units.map((u) => (
-        <div key={u.id}>
-        <div className="card row">
-          {editing === u.id ? (
-            <>
-              <input aria-label={t('unitLabel')} value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={40} style={{ width: 120 }} />
-              <input aria-label={t('bedrooms')} inputMode="numeric" value={editBeds} onChange={(e) => setEditBeds(e.target.value)} style={{ width: 80 }} />
-              <input aria-label={t('floor')} value={editFloor} onChange={(e) => setEditFloor(e.target.value)} maxLength={20} style={{ width: 80 }} />
-              <button type="button" onClick={() => saveUnit(u.id)}>{t('save')}</button>
-              <button type="button" className="link" onClick={() => setEditing(null)}>{t('cancel')}</button>
-            </>
-          ) : (
-            <>
-              <span><strong>{u.label}</strong> · {u.bedrooms} {t('bedrooms').toLowerCase()}{u.floor ? ` · ${t('floor')} ${u.floor}` : ''}</span><span className="spacer" />
-              <button type="button" className="link" onClick={() => setMediaFor(mediaFor === u.id ? null : u.id)}>{t('mediaToggle')}</button>
-              {canWrite && <button type="button" className="link" onClick={() => { setEditing(u.id); setEditLabel(u.label); setEditBeds(String(u.bedrooms)); setEditFloor(u.floor ?? ''); }}>{t('edit')}</button>}
-              {canArchive && <button type="button" className="link" onClick={() => archiveUnit(u.id)}>{t('archive')}</button>}
-            </>
-          )}
-        </div>
-        {mediaFor === u.id && <FilePanel orgId={orgId} propertyId={propertyId} unitId={u.id} kinds={['photo', 'video']} canWrite={canWrite} canArchive={canArchive} />}
-        </div>
-      ))}
+      {units.length === 0 ? <div className="empty">{t('noUnits')}</div> : (
+        <table className="table">
+          <thead><tr><th>{t('unitLabel')}</th><th>{t('floor')}</th><th>{t('bedrooms')}</th><th /></tr></thead>
+          <tbody>
+            {units.map((u) => (
+              <Fragment key={u.id}>
+                <tr>
+                  {editing === u.id ? (
+                    <>
+                      <td><input aria-label={t('unitLabel')} value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={40} /></td>
+                      <td><input aria-label={t('floor')} value={editFloor} onChange={(e) => setEditFloor(e.target.value)} maxLength={20} /></td>
+                      <td><input aria-label={t('bedrooms')} inputMode="numeric" value={editBeds} onChange={(e) => setEditBeds(e.target.value)} /></td>
+                      <td className="actions"><button type="button" onClick={() => saveUnit(u.id)}>{t('save')}</button><button type="button" className="link" onClick={() => setEditing(null)}>{t('cancel')}</button></td>
+                    </>
+                  ) : (
+                    <>
+                      <td><strong>{u.label}</strong></td><td>{u.floor ?? '–'}</td><td>{u.bedrooms === 0 ? t('bedsitter') : u.bedrooms}</td>
+                      <td className="actions">
+                        <button type="button" className="link" onClick={() => setMediaFor(mediaFor === u.id ? null : u.id)}>{t('mediaToggle')}</button>
+                        {canWrite && <button type="button" className="link" onClick={() => { setEditing(u.id); setEditLabel(u.label); setEditBeds(String(u.bedrooms)); setEditFloor(u.floor ?? ''); }}>{t('edit')}</button>}
+                        {canArchive && <button type="button" className="link" onClick={() => archiveUnit(u.id)}>{t('archive')}</button>}
+                      </td>
+                    </>
+                  )}
+                </tr>
+                {mediaFor === u.id && <tr><td colSpan={4}><FilePanel orgId={orgId} propertyId={propertyId} unitId={u.id} kinds={['photo', 'video']} canWrite={canWrite} canArchive={canArchive} /></td></tr>}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      )}
       {canWrite && (
-        <form onSubmit={addUnit}>
+        <form onSubmit={addUnit} className="panel">
           <h2>{t('addUnit')}</h2>
           <label htmlFor="ul">{t('unitLabel')}</label><input id="ul" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={40} required />
           <label htmlFor="uf">{t('floor')} ({t('optional')})</label><input id="uf" value={floor} onChange={(e) => setFloor(e.target.value)} maxLength={20} />

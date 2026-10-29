@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 
 export default function Org() {
@@ -35,20 +36,19 @@ export default function Org() {
   if (!org) return <p className="msg">{t('loading')}</p>;
   return (
     <>
-      <h1>{org.name}</h1>
-      <p className="msg">{t('kind_' + org.kind)}</p>
-      <p><Link href={`/orgs/${orgId}/properties`}>{t('propertiesLink')} →</Link></p>
+      <PageHead back={{ href: '/', label: t('home') }} eyebrow={t('kind_' + org.kind)} title={org.name}><Link className="btn" href={`/orgs/${orgId}/properties`}>{t('propertiesLink')}</Link></PageHead>
       <h2>{t('members')}</h2>
       {members.map((m) => (
         <div className="card row" key={m.userId + m.role}>
-          <span>{m.name ?? m.phone} · {t('role_' + m.role)}</span><span className="spacer" />
+          <span className="avatar" aria-hidden>{m.name ? m.name.charAt(0).toUpperCase() : '☺'}</span>
+          <span>{m.name ?? m.phone}<br /><span className="badge">{t('role_' + m.role)}</span></span><span className="spacer" />
           {isAdmin && <button className="danger" onClick={() => remove(m.userId)}>{t('remove')}</button>}
         </div>
       ))}
       {isAdmin && (
         <>
           <h2>{t('invite')}</h2>
-          <form onSubmit={invite}>
+          <form onSubmit={invite} className="panel">
             <label htmlFor="ph">{t('phoneLabel')}</label>
             <input id="ph" inputMode="tel" placeholder={t('phoneHint')} value={phone} onChange={(e) => setPhone(e.target.value)} required />
             <label htmlFor="role">{t('role')}</label>
