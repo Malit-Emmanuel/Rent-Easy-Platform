@@ -163,5 +163,74 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN failed := failed || ('unit without floor rejected: ' || SQLERRM); END;
   END;
 
+  -- S4: review cases
+  DECLARE
+    org uuid := '11111111-1111-1111-1111-111111111111'; prop uuid := '22222222-2222-2222-2222-222222222222';
+    sub uuid := '81111111-1111-1111-1111-111111111111'; rev1 uuid := '82222222-2222-2222-2222-222222222222';
+    rev2 uuid := '83333333-3333-3333-3333-333333333333'; insider uuid := '84444444-4444-4444-4444-444444444444';
+    doc uuid := '85555555-5555-5555-5555-555555555555'; pending_doc uuid := '86666666-6666-6666-6666-666666666666';
+    c1 uuid := '91111111-1111-1111-1111-111111111111'; c2 uuid := '92222222-2222-2222-2222-222222222222'; c3 uuid := '93333333-3333-3333-3333-333333333333';
+    c4 uuid := '94444444-4444-4444-4444-444444444444'; badge uuid;
+  BEGIN
+    INSERT INTO identity.users(id, phone) VALUES (sub,'+254700000071'),(rev1,'+254700000072'),(rev2,'+254700000073'),(insider,'+254700000074');
+    INSERT INTO identity.memberships(user_id, org_id, role) VALUES (sub, org, 'manager_admin'), (insider, org, 'manager_staff');
+    INSERT INTO identity.platform_roles(user_id, role) VALUES (rev1,'reviewer'),(rev2,'reviewer'),(insider,'reviewer');
+    INSERT INTO supply.files(id,org_id,property_id,kind,doc_type,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at)
+      VALUES (doc,org,prop,'document','title_deed','s4/doc','application/pdf',1000,'ready',sub,now());
+    INSERT INTO supply.files(id,org_id,property_id,kind,doc_type,storage_path,mime_type,size_bytes,status,uploaded_by)
+      VALUES (pending_doc,org,prop,'document','title_deed','s4/pending','application/pdf',1000,'pending',sub);
+
+    BEGIN INSERT INTO verification.cases(id,org_id,property_id,submitted_by,due_at) VALUES (c1,org,prop,sub,now()+interval '2 days'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid case rejected: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.cases(org_id,property_id,submitted_by,due_at) VALUES (org,prop,sub,now()+interval '2 days');
+      failed := failed || 'second open case accepted';
+    EXCEPTION WHEN unique_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.case_files(case_id,file_id) VALUES (c1,doc); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('ready document rejected: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.case_files(case_id,file_id) VALUES (c1,pending_doc); failed := failed || 'pending document attached';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='in_review', claimed_by=insider, claimed_at=now() WHERE id=c1; failed := failed || 'reviewer from the same organisation could claim';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='in_review', claimed_by=sub, claimed_at=now() WHERE id=c1; failed := failed || 'non-reviewer could claim';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='in_review', claimed_by=rev1, claimed_at=now() WHERE id=c1; passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid claim rejected: ' || SQLERRM); END;
+    BEGIN UPDATE supply.files SET status='deleted', deleted_at=now() WHERE id=doc; failed := failed || 'evidence of an open case could be deleted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='rejected', decided_by=rev1, decided_at=now() WHERE id=c1; failed := failed || 'rejection without a reason accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='rejected', decided_by=rev1, decided_at=now(), reason_code='other' WHERE id=c1; failed := failed || '"other" without a note accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='approved', decided_by=rev1, decided_at=now() WHERE id=c1; failed := failed || 'approval without a badge accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='rejected', decided_by=rev1, decided_at=now(), reason_code='doc_expired' WHERE id=c1; passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid rejection failed: ' || SQLERRM); END;
+    BEGIN UPDATE verification.cases SET status='in_review', decided_at=NULL WHERE id=c1; failed := failed || 'decided case reopened';
+    EXCEPTION WHEN OTHERS THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET reason_code='suspected_forgery' WHERE id=c1; failed := failed || 'decided case changed';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.cases(id,org_id,property_id,submitted_by,due_at,appeal_of) VALUES (c2,org,prop,sub,now()+interval '2 days',c1); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid appeal rejected: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.cases(org_id,property_id,submitted_by,due_at,appeal_of) VALUES (org,prop,sub,now()+interval '2 days',c1); failed := failed || 'second appeal accepted';
+    EXCEPTION WHEN unique_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='rejected', decided_by=rev1, decided_at=now(), reason_code='doc_expired' WHERE id=c2; failed := failed || 'appeal decided by the same reviewer';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='rejected', decided_by=rev2, decided_at=now(), reason_code='doc_expired' WHERE id=c2; passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('appeal by another reviewer failed: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.cases(org_id,property_id,submitted_by,due_at,appeal_of) VALUES (org,prop,sub,now()+interval '2 days',c2); failed := failed || 'appeal of an appeal accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',prop,'t1_documented',rev1,now(),now()); failed := failed || 'badge with no lifetime accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    -- a later, fresh case can be approved with a badge, and its evidence stays frozen
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',prop,'t1_documented',rev1,now(),now()+interval '12 months') RETURNING id INTO badge;
+    BEGIN INSERT INTO verification.cases(id,org_id,property_id,status,submitted_by,due_at,claimed_by,decided_by,decided_at,badge_id)
+      VALUES (c3,org,prop,'approved',sub,now()+interval '2 days',rev1,rev1,now(),badge); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid approval failed: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.case_files(case_id,file_id) VALUES (c3,doc); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('attach to approved case failed: ' || SQLERRM); END;
+    BEGIN UPDATE supply.files SET status='deleted', deleted_at=now() WHERE id=doc; failed := failed || 'evidence of an approved case could be deleted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+  END;
+
   RAISE EXCEPTION 'RULES: % passed, % failed %', passed, cardinality(failed), failed;
 END $$;
