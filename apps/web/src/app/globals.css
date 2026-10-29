@@ -88,7 +88,7 @@ button.danger { background:var(--err); color:#fff; } .msg { color:var(--muted); 
 /* Property verification */
 .row.between { display:flex; justify-content:space-between; align-items:center; gap:12px; }
 .vcard h2 { margin:0; }
-.vstate { padding:3px 10px; border-radius:999px; font:600 .78rem var(--sans, inherit); background:var(--raised); color:var(--fg); }
+.vstate { white-space:nowrap; padding:3px 10px; border-radius:999px; font:600 .78rem var(--sans, inherit); background:var(--raised); color:var(--fg); }
 .vstate.ok { background:var(--brand); color:var(--brand-fg); }
 .vstate.bad { background:#fde8e6; color:#8a1c12; }
 .vstate.wait { background:#fff3d6; color:#6b4a00; }

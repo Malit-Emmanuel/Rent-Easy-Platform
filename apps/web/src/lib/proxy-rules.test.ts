@@ -16,3 +16,10 @@ test('state-changing requests need a same-site Origin', () => {
   assert.equal(same('DELETE', null, 'a.com'), false);
   assert.equal(same('POST', 'not a url', 'a.com'), false);
 });
+
+test('reviewer case routes are proxied, nothing next to them is', () => {
+  assert.equal(ok(['review', 'cases', 'queue']), true);
+  assert.equal(ok(['review', 'cases', 'abc', 'claim']), true);
+  assert.equal(ok(['review']), false);
+  assert.equal(ok(['review-other', 'cases']), false);
+});

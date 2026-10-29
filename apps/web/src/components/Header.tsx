@@ -22,6 +22,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                  { href: `/orgs/${orgId}/properties/import`, label: t('importNav'), icon: '↥', on: path.endsWith('/import') },
                  { href: `/orgs/${orgId}`, label: t('members'), icon: '☺', on: path === `/orgs/${orgId}` }] : []),
     { href: '/verification', label: t('verification'), icon: '✓', on: path.startsWith('/verification') },
+    ...(reviewer ? [{ href: '/review', label: t('rvNav'), icon: '▤', on: path.startsWith('/review') }] : []),
     ...(reviewer ? [{ href: '/admin', label: t('admin'), icon: '◎', on: path.startsWith('/admin') }] : []),
   ];
   const langPick = (
