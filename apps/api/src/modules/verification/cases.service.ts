@@ -41,6 +41,7 @@ export class CasesService {
       case: latest && {
         id: latest.id, status: latest.status, submittedAt: latest.submitted_at, dueAt: latest.due_at, paused: !!latest.paused_at,
         decidedAt: latest.decided_at, reasonCode: latest.reason_code, note: latest.note, isAppeal: !!latest.appeal_of,
+        canResubmit: latest.status === 'needs_changes',
         canAppeal: canAppeal({ status: latest.status, decidedAt: latest.decided_at, appealOf: latest.appeal_of, hasAppeal: latest.has_appeal }, new Date()),
       },
       missingProof: missing, canRequest: !badge && !open,
@@ -100,5 +101,27 @@ export class CasesService {
     if (!last || !canAppeal({ status: last.status, decidedAt: last.decided_at, appealOf: last.appeal_of, hasAppeal: last.has_appeal }, new Date()))
       throw new ConflictException('There is no rejected case that can be appealed');
     return this.create(orgId, propertyId, userId, last.id);
+  }
+
+  /** After "needs changes": the manager has added or fixed documents and sends the same case back. The review clock resumes with the time that was left. */
+  async resubmit(orgId: string, propertyId: string, userId: string) {
+    const c = await this.pool.connect();
+    try {
+      await c.query('BEGIN');
+      const prop = await this.property(orgId, propertyId, c);
+      await c.query('SELECT 1 FROM supply.properties WHERE id=$1 FOR UPDATE', [propertyId]);
+      const cur = (await c.query(`SELECT id, due_at, paused_at FROM verification.cases WHERE property_id=$1 AND status='needs_changes' FOR UPDATE`, [propertyId])).rows[0];
+      if (!cur) throw new ConflictException({ code: 'nothing_to_resubmit', message: 'There is no request waiting for changes.' });
+      const docs = await this.docs(propertyId, c);
+      const missing = missingProof(docs.map((d) => d.doc_type), prop.org_kind);
+      if (missing.length) throw new HttpException({ code: 'proof_missing', message: 'Upload the required documents first.', missing }, 422);
+      const left = Math.max(new Date(cur.due_at).getTime() - new Date(cur.paused_at ?? Date.now()).getTime(), 3_600_000);
+      await c.query(`INSERT INTO verification.case_files (case_id, file_id) SELECT $1, id FROM supply.files WHERE property_id=$2 AND kind='document' AND status='ready' ON CONFLICT DO NOTHING`, [cur.id, propertyId]);
+      const due = new Date(Date.now() + left);
+      await c.query(`UPDATE verification.cases SET status='submitted', paused_at=NULL, reason_code=NULL, note=NULL, due_at=$2, submitted_at=LEAST(submitted_at, now() - interval '1 second') WHERE id=$1`, [cur.id, due]);
+      await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,'verification.resubmitted','verification_case',$2,$3)`, [userId, cur.id, JSON.stringify({ propertyId, orgId })]);
+      await c.query('COMMIT');
+      return { caseId: cur.id, status: 'submitted', dueAt: due };
+    } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
   }
 }

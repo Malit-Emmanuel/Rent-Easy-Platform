@@ -1,6 +1,10 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
+import { STORAGE_PORT, StoragePort } from '../supply/files/storage.port';
+import { badgeExpiry, checkDecision } from './cases.rules';
+
+const LINK_TTL_SEC = 300;   // a document link works for 5 minutes
 
 /**
  * Reviewer side of T1 review (queue and claim). A reviewer never sees, claims or decides a case of an
@@ -8,7 +12,7 @@ import { AuditService, PG_POOL } from '../audit/audit.service';
  */
 @Injectable()
 export class ReviewService {
-  constructor(@Inject(PG_POOL) private pool: Pool, @Inject(AuditService) private audit: AuditService) {}
+  constructor(@Inject(PG_POOL) private pool: Pool, @Inject(AuditService) private audit: AuditService, @Inject(STORAGE_PORT) private storage: StoragePort | null) {}
 
   private static readonly SELECT = `
     SELECT c.id, c.status, c.submitted_at, c.due_at, c.risk_flags, c.appeal_of IS NOT NULL AS is_appeal, c.claimed_by, c.claimed_at,
@@ -65,5 +69,80 @@ export class ReviewService {
     if (!r.rowCount) throw new NotFoundException('Case not found');
     await this.audit.record({ actorId: reviewerId, action: 'verification.case_released', subjectType: 'verification_case', subjectId: caseId });
     return { id: caseId, status: 'submitted' };
+  }
+
+  /** The case as the reviewer who holds it sees it (or, afterwards, the one who decided it). Every read is logged. */
+  async detail(caseId: string, reviewerId: string) {
+    const row = (await this.pool.query(`${ReviewService.SELECT} WHERE c.id=$1 AND ((c.status='in_review' AND c.claimed_by=$2) OR c.decided_by=$2)`, [caseId, reviewerId])).rows[0];
+    if (!row) throw new NotFoundException('Case not found');
+    const files = (await this.pool.query(
+      `SELECT f.id, f.doc_type AS "docType", f.original_name AS "originalName", f.mime_type AS "mimeType", f.size_bytes::int AS "sizeBytes", f.created_at AS "uploadedAt"
+         FROM verification.case_files cf JOIN supply.files f ON f.id = cf.file_id WHERE cf.case_id=$1 ORDER BY f.created_at, f.id`, [caseId])).rows;
+    const opened = new Set((await this.pool.query(`SELECT DISTINCT split_part(reason, ' file ', 2) AS fid FROM governance.data_access_log WHERE accessor_id=$1 AND resource='file:document' AND reason LIKE $2`, [reviewerId, `case ${caseId} file %`])).rows.map((r: any) => r.fid));
+    const earlier = row.is_appeal ? (await this.pool.query(`SELECT o.reason_code AS "reasonCode", o.note FROM verification.cases o JOIN verification.cases a ON a.appeal_of = o.id WHERE a.id=$1`, [caseId])).rows[0] ?? null : null;
+    const outcome = (await this.pool.query(`SELECT status, reason_code AS "reasonCode", note, decided_at AS "decidedAt" FROM verification.cases WHERE id=$1`, [caseId])).rows[0];
+    await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, resource, reason) VALUES ($1,'verification_case',$2)`, [reviewerId, `case ${caseId}`]);
+    return {
+      ...this.shape(row, reviewerId), files: files.map((f: any) => ({ ...f, opened: opened.has(f.id) })),
+      allOpened: files.length > 0 && files.every((f: any) => opened.has(f.id)),
+      earlierDecision: earlier, decided: ['approved', 'rejected'].includes(outcome.status) ? outcome : null,
+    };
+  }
+
+  /** A link that opens one attached document for 5 minutes. Only the holder of the case, only documents attached to it, always logged. */
+  async openFile(caseId: string, fileId: string, reviewerId: string) {
+    if (!this.storage) throw new ServiceUnavailableException('File storage is not configured');
+    const f = (await this.pool.query(
+      `SELECT f.storage_path, f.original_name, f.uploaded_by FROM verification.cases c JOIN verification.case_files cf ON cf.case_id = c.id JOIN supply.files f ON f.id = cf.file_id
+        WHERE c.id=$1 AND f.id=$2 AND c.status='in_review' AND c.claimed_by=$3`, [caseId, fileId, reviewerId])).rows[0];
+    if (!f) throw new NotFoundException('Document not found');
+    let url: string;
+    try { url = await this.storage.createSignedDownload(f.storage_path, LINK_TTL_SEC, f.original_name ?? 'document'); }
+    catch { throw new BadGatewayException('File storage is unavailable. Please try again.'); }
+    await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, subject_user_id, resource, reason) VALUES ($1,$2,'file:document',$3)`, [reviewerId, f.uploaded_by ?? null, `case ${caseId} file ${fileId}`]);
+    await this.audit.record({ actorId: reviewerId, action: 'verification.document_opened', subjectType: 'verification_case', subjectId: caseId, metadata: { fileId } });
+    return { url, expiresInSec: LINK_TTL_SEC };
+  }
+
+  /** The human decision. Approve issues a 12-month T1 badge; the other two need a reason code. */
+  async decide(caseId: string, reviewerId: string, body: { decision?: unknown; reasonCode?: unknown; note?: unknown }) {
+    const bad = checkDecision(body); if (bad) throw new BadRequestException(bad);
+    const decision = body.decision as 'approve' | 'needs_changes' | 'reject';
+    const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
+    const reason = decision === 'approve' ? null : (body.reasonCode as string);
+    const c = await this.pool.connect();
+    try {
+      await c.query('BEGIN');
+      const row = (await c.query(`SELECT id, org_id, property_id, status, claimed_by, due_at, submitted_at, (SELECT count(*)::int FROM verification.case_files WHERE case_id=$1) AS files FROM verification.cases WHERE id=$1 FOR UPDATE`, [caseId])).rows[0];
+      if (!row || row.claimed_by !== reviewerId) throw new NotFoundException('Case not found');
+      if (row.status !== 'in_review') throw new ConflictException({ code: 'case_not_open', message: 'This case has already been decided.' });
+      if (decision === 'approve') {
+        const seen = (await c.query(`SELECT count(DISTINCT split_part(reason, ' file ', 2))::int n FROM governance.data_access_log WHERE accessor_id=$1 AND resource='file:document' AND reason LIKE $2`, [reviewerId, `case ${caseId} file %`])).rows[0].n;
+        if (!row.files || seen < row.files) throw new UnprocessableEntityException({ code: 'documents_not_opened', message: 'Open every attached document before approving.' });
+      }
+      let badgeId: string | null = null;
+      if (decision === 'approve') {
+        const now = new Date();
+        badgeId = (await c.query(`INSERT INTO verification.badges (subject_type, subject_id, level, verified_by, evidence_ref, issued_at, expires_at) VALUES ('property',$1,'t1_documented',$2,$3,$4,$5) RETURNING id`,
+          [row.property_id, reviewerId, `case:${caseId}`, now, badgeExpiry(now)])).rows[0].id;
+      }
+      const status = decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'needs_changes';
+      const final = decision !== 'needs_changes';
+      try {
+        await c.query(
+          `UPDATE verification.cases SET status=$2, reason_code=$3, note=$4, badge_id=$5,
+                  decided_by = CASE WHEN $6 THEN $7::uuid END, decided_at = CASE WHEN $6 THEN now() END,
+                  paused_at = CASE WHEN $2='needs_changes' THEN now() END,
+                  claimed_by = CASE WHEN $2='needs_changes' THEN NULL ELSE claimed_by END, claimed_at = CASE WHEN $2='needs_changes' THEN NULL ELSE claimed_at END
+            WHERE id=$1`, [caseId, status, reason, note, badgeId, final, reviewerId]);
+      } catch (e: any) {   // the database rules are the last line of defence: they refuse self-review and a repeat reviewer on an appeal
+        if (/reviewer|decider|different reviewer/.test(String(e?.message))) throw new NotFoundException('Case not found');
+        throw e;
+      }
+      await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,$2,'verification_case',$3,$4)`,
+        [reviewerId, `verification.${status}`, caseId, JSON.stringify({ propertyId: row.property_id, orgId: row.org_id, reasonCode: reason, badgeId, flagged: reason === 'suspected_forgery' })]);
+      await c.query('COMMIT');
+      return { id: caseId, status, reasonCode: reason, badgeId };
+    } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
   }
 }

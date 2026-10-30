@@ -17,4 +17,7 @@ export class CasesController {
 
   @Post('orgs/:orgId/properties/:propertyId/verification/appeal') @HttpCode(201) @Roles(...WRITE)
   appeal(@Req() req: any, @Param('orgId', uuid()) orgId: string, @Param('propertyId', uuid()) pid: string) { return this.svc.appeal(orgId, pid, req.user.id); }
+
+  @Post('orgs/:orgId/properties/:propertyId/verification/resubmit') @HttpCode(201) @Roles(...WRITE)
+  resubmit(@Req() req: any, @Param('orgId', uuid()) orgId: string, @Param('propertyId', uuid()) pid: string) { return this.svc.resubmit(orgId, pid, req.user.id); }
 }

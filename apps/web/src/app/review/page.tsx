@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
 import PageHead from '@/components/PageHead';
@@ -42,7 +43,7 @@ export default function ReviewQueue() {
                 <td>{c.minutesLeft === null ? '–' : <span className={`vstate ${c.breached ? 'bad' : c.minutesLeft < 24 * 60 ? 'wait' : 'none'}`}>{c.breached ? `${t('rvOverdue')} ${span(c.minutesLeft)}` : `${span(c.minutesLeft)} ${t('rvLeft')}`}</span>}</td>
                 <td>{c.isAppeal && <span className="badge">{t('rvAppeal')}</span>}{' '}{c.riskFlags.filter((f) => f !== 'appeal').map((f) => <span className="badge" key={f}>{word('flag_' + f)}</span>)}</td>
                 <td className="actions">
-                  {c.claimedByMe ? (<><span className="vstate ok">{t('rvMine')}</span><button type="button" className="link" disabled={busy === c.id} onClick={() => act(c.id, 'release')}>{t('rvRelease')}</button></>)
+                  {c.claimedByMe ? (<><Link href={`/review/${c.id}`}><button type="button">{t('rvOpenCase')}</button></Link><span className="vstate ok">{t('rvMine')}</span><button type="button" className="link" disabled={busy === c.id} onClick={() => act(c.id, 'release')}>{t('rvRelease')}</button></>)
                     : <button type="button" disabled={busy === c.id} onClick={() => act(c.id, 'claim')}>{t('rvClaim')}</button>}
                 </td>
               </tr>

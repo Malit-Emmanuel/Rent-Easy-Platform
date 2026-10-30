@@ -50,3 +50,22 @@ export function canAppeal(c: { status: string; decidedAt: Date | null; appealOf:
 export function badgeValid(b: { expiresAt: Date; revokedAt: Date | null } | null | undefined, now: Date): boolean {
   return !!b && !b.revokedAt && b.expiresAt.getTime() > now.getTime();
 }
+
+export const REASON_CODES = ['doc_unreadable', 'doc_owner_mismatch', 'doc_expired', 'authorisation_missing', 'property_mismatch', 'suspected_forgery', 'other'] as const;
+export const BADGE_MONTHS = 12;
+export type Decision = 'approve' | 'needs_changes' | 'reject';
+
+/** Returns an error message, or null when the decision is well formed. Approving needs no reason; the other two always do. */
+export function checkDecision(d: { decision?: unknown; reasonCode?: unknown; note?: unknown }): string | null {
+  if (d.decision !== 'approve' && d.decision !== 'needs_changes' && d.decision !== 'reject') return 'decision must be approve, needs_changes or reject';
+  const note = typeof d.note === 'string' ? d.note.trim() : '';
+  if (d.note !== undefined && d.note !== null && typeof d.note !== 'string') return 'note must be text';
+  if (note.length > 500) return 'note is limited to 500 characters';
+  if (d.decision === 'approve') return d.reasonCode ? 'an approval has no reason code' : null;
+  if (typeof d.reasonCode !== 'string' || !(REASON_CODES as readonly string[]).includes(d.reasonCode)) return 'a valid reason code is required';
+  if (d.reasonCode === 'other' && !note) return 'the reason "other" needs a written note';
+  return null;
+}
+
+/** Twelve calendar months from the issue date. */
+export function badgeExpiry(from: Date): Date { const d = new Date(from); d.setUTCMonth(d.getUTCMonth() + BADGE_MONTHS); return d; }

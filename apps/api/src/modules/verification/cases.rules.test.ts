@@ -42,3 +42,24 @@ test('expired and revoked badges never count', () => {
   assert.equal(badgeValid({ expiresAt: d('2027-01-01T00:00:00Z'), revokedAt: d('2026-10-30T00:00:00Z') }, now), false);
   assert.equal(badgeValid(null, now), false);
 });
+
+import { badgeExpiry, checkDecision } from './cases.rules';
+
+test('decisions: approve needs no reason; reject and needs_changes need a valid one; "other" needs a note', () => {
+  assert.equal(checkDecision({ decision: 'approve' }), null);
+  assert.ok(checkDecision({ decision: 'approve', reasonCode: 'doc_expired' }));
+  assert.ok(checkDecision({ decision: 'maybe' }));
+  assert.ok(checkDecision({ decision: 'reject' }));
+  assert.ok(checkDecision({ decision: 'reject', reasonCode: 'because' }));
+  assert.equal(checkDecision({ decision: 'reject', reasonCode: 'doc_expired' }), null);
+  assert.equal(checkDecision({ decision: 'needs_changes', reasonCode: 'doc_unreadable', note: 'Page 2 is blurred' }), null);
+  assert.ok(checkDecision({ decision: 'reject', reasonCode: 'other' }));
+  assert.ok(checkDecision({ decision: 'reject', reasonCode: 'other', note: '   ' }));
+  assert.equal(checkDecision({ decision: 'reject', reasonCode: 'other', note: 'Seal looks copied' }), null);
+  assert.ok(checkDecision({ decision: 'reject', reasonCode: 'doc_expired', note: 'x'.repeat(501) }));
+  assert.ok(checkDecision({ decision: 'reject', reasonCode: 'doc_expired', note: 5 }));
+});
+
+test('a T1 badge lasts twelve months', () => {
+  assert.equal(badgeExpiry(d('2026-10-29T09:00:00Z')).toISOString(), '2027-10-29T09:00:00.000Z');
+});

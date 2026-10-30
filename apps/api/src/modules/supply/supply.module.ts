@@ -11,6 +11,6 @@ import { SupplyService } from './supply.service';
 @Module({
   controllers: [SupplyController, FilesController, ImportController],
   providers: [SupplyService, FilesService, ImportService, { provide: STORAGE_PORT, useFactory: () => buildStorage() }],
-  exports: [SupplyService, FilesService],
+  exports: [SupplyService, FilesService, STORAGE_PORT],
 })
 export class SupplyModule {}

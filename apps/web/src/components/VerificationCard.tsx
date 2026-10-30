@@ -5,7 +5,7 @@ import { api } from '@/lib/client';
 
 type Status = {
   verified: boolean; verifiedUntil: string | null; canRequest: boolean; missingProof: string[]; appealWindowDays: number;
-  case: null | { status: string; dueAt: string | null; reasonCode: string | null; note: string | null; canAppeal: boolean; isAppeal?: boolean };
+  case: null | { status: string; dueAt: string | null; reasonCode: string | null; note: string | null; canAppeal: boolean; canResubmit?: boolean; isAppeal?: boolean };
 };
 
 export default function VerificationCard({ orgId, propertyId, canWrite }: { orgId: string; propertyId: string; canWrite: boolean }) {
@@ -45,6 +45,7 @@ export default function VerificationCard({ orgId, propertyId, canWrite }: { orgI
       )}
       {canWrite && s.canRequest && <button disabled={busy || s.missingProof.length > 0} onClick={() => go(url, t('pvRequested'))}>{t('pvRequest')}</button>}
       {canWrite && c?.canAppeal && (<><p className="msg">{t('pvAppealHint').replace('{n}', String(s.appealWindowDays))}</p><button disabled={busy} onClick={() => go(`${url}/appeal`, t('pvAppealed'))}>{t('pvAppeal')}</button></>)}
+      {canWrite && c?.canResubmit && (<><p className="msg">{t('pvResubmitHint')}</p><button disabled={busy} onClick={() => go(`${url}/resubmit`, t('pvResubmitted'))}>{t('pvResubmit')}</button></>)}
       {msg && <p className="msg" role="status">{msg}</p>}
       {err && <p className="error" role="alert">{err}</p>}
     </section>
