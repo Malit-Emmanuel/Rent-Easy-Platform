@@ -27,5 +27,6 @@ export default function PropertyCard({ orgId, p, units, one, tag, state }: { org
 export function cardState(p: PropertyRow, t: (k: any) => string): string | undefined {
   if (p.verifiedUntil) return t('pvApproved' as any);
   const m: Record<string, string> = { submitted: 'pvSubmitted', in_review: 'pvIn_review', needs_changes: 'pvNeeds_changes', rejected: 'pvRejected' };
+  if (p.caseStatus === 'approved') return t('pvEnded' as any);   // approved once, but the badge has expired or been withdrawn
   return p.caseStatus && m[p.caseStatus] ? t(m[p.caseStatus] as any) : undefined;
 }

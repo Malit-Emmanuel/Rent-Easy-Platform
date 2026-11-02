@@ -177,4 +177,25 @@ export class ReviewService {
       return { id: badgeId, revoked: true, reasonCode: body.reasonCode };
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
   }
+
+  /** What this reviewer has decided or withdrawn, newest first. Built from the audit trail, so it can never disagree with it. */
+  async history(reviewerId: string) {
+    const rows = (await this.pool.query(
+      `SELECT * FROM (
+         SELECT a.occurred_at AS at, replace(a.action, 'verification.', '') AS kind, a.metadata->>'reasonCode' AS reason_code, c.id AS ref_id,
+                c.appeal_of IS NOT NULL AS is_appeal, p.name AS property_name, o.name AS org_name
+           FROM governance.audit_events a
+           JOIN verification.cases c ON c.id::text = a.subject_id
+           JOIN supply.properties p ON p.id = c.property_id JOIN identity.organizations o ON o.id = c.org_id
+          WHERE a.actor_id = $1 AND a.subject_type = 'verification_case' AND a.action IN ('verification.approved','verification.rejected','verification.needs_changes')
+         UNION ALL
+         SELECT a.occurred_at, 'badge_revoked', a.metadata->>'reasonCode', b.id, false, p.name, o.name
+           FROM governance.audit_events a
+           JOIN verification.badges b ON b.id::text = a.subject_id
+           JOIN supply.properties p ON p.id = b.subject_id JOIN identity.organizations o ON o.id = p.org_id
+          WHERE a.actor_id = $1 AND a.subject_type = 'badge' AND a.action = 'verification.badge_revoked'
+       ) h ORDER BY at DESC LIMIT 200`, [reviewerId])).rows;
+    await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, resource, reason) VALUES ($1,'verification_history',$2)`, [reviewerId, `listed ${rows.length}`]);
+    return rows.map((r: any) => ({ at: r.at, kind: r.kind, reasonCode: r.reason_code, id: r.ref_id, isAppeal: r.is_appeal, propertyName: r.property_name, orgName: r.org_name }));
+  }
 }

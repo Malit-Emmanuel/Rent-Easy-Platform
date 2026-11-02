@@ -118,6 +118,19 @@ t('case page, 5-minute document links and decisions over HTTP', async (ctx) => {
       assert.equal((await claim(caseC, r2)).status, 200, 'any reviewer can take it again');
     });
 
+    await ctx.test('my decisions: each reviewer sees only their own, newest first, with outcome and reason', async () => {
+      const mine = async (r: any) => (await h.call('GET', '/review/cases/history', undefined, r.accessToken)).body as any[];
+      const h1 = (await mine(r1)).filter((x) => [caseA, caseB, caseC].includes(x.id));
+      assert.deepEqual(h1.map((x) => `${x.kind}:${x.propertyName}`).sort(), ['approved:Alpha', 'needs_changes:Charlie', 'rejected:Bravo']);
+      assert.equal(h1.find((x) => x.kind === 'rejected').reasonCode, 'doc_expired');
+      assert.ok(h1.every((x, i, a) => i === 0 || new Date(a[i - 1].at) >= new Date(x.at)), 'newest first');
+      const h2 = (await mine(r2)).filter((x) => x.propertyName === 'Bravo');
+      assert.equal(h2.length, 1); assert.equal(h2[0].kind, 'approved'); assert.equal(h2[0].isAppeal, true);
+      assert.equal((await mine(r2)).filter((x) => x.propertyName === 'Alpha').length, 0, 'not another reviewer\'s decision');
+      assert.equal((await h.call('GET', '/review/cases/history', undefined, mgr.accessToken)).status, 403);
+      assert.equal((await h.call('GET', '/review/cases/history')).status, 401);
+    });
+
     await ctx.test('audit trail covers claims, opens, decisions and resubmission', async () => {
       const a = (await h.pool.query(`SELECT action, count(*)::int n FROM governance.audit_events WHERE subject_id = ANY($1) GROUP BY 1`, [[caseA, caseB, caseC]])).rows;
       const m = Object.fromEntries(a.map((r: any) => [r.action, r.n]));

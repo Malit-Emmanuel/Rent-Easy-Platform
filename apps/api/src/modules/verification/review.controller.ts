@@ -11,6 +11,9 @@ export class ReviewController {
   @Get('queue') @Roles('reviewer')
   queue(@Req() req: any) { return this.svc.queue(req.user.id); }
 
+  @Get('history') @Roles('reviewer')
+  history(@Req() req: any) { return this.svc.history(req.user.id); }
+
   @Post(':id/claim') @HttpCode(200) @Roles('reviewer')
   claim(@Req() req: any, @Param('id', uuid()) id: string) { return this.svc.claim(id, req.user.id); }
 
