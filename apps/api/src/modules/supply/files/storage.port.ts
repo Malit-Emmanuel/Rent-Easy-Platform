@@ -10,5 +10,7 @@ export interface StoragePort {
   /** Total size and the first `bytes` bytes, or null if the object does not exist (yet). */
   head(path: string, bytes: number): Promise<StoredHead | null>;
   createSignedDownload(path: string, ttlSec: number, downloadName?: string): Promise<string>;
+  /** SHA-256 of the whole stored object, computed by us (never taken from the browser), or null if it does not exist. */
+  sha256(path: string): Promise<Buffer | null>;
   remove(path: string): Promise<void>;
 }

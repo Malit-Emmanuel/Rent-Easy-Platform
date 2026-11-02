@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { SignedUpload, StoragePort, StoredHead } from './storage.port';
 
 /** In-memory storage for development and tests. `put` plays the part of the browser uploading to the signed link. */
@@ -14,5 +15,6 @@ export class FakeStorage implements StoragePort {
   async createSignedDownload(path: string, ttlSec: number, downloadName?: string) {
     return `https://fake-storage.invalid/download/${path}?ttl=${ttlSec}${downloadName ? `&name=${encodeURIComponent(downloadName)}` : ''}`;
   }
+  async sha256(path: string) { const o = this.objects.get(path); return o ? createHash('sha256').update(o).digest() : null; }
   async remove(path: string) { this.objects.delete(path); }
 }

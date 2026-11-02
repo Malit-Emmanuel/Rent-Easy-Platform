@@ -77,3 +77,22 @@ test('configuration: refuses non-https URLs; picks the backend from the environm
   assert.ok(buildStorage({ STORAGE_DRIVER: 'fake', APP_ENV: 'test' }) instanceof FakeStorage);
   assert.throws(() => buildStorage({ STORAGE_DRIVER: 'fake', APP_ENV: 'production' }));
 });
+
+test('sha256: hashes the whole object in streamed chunks; missing objects give null; fake storage agrees', async () => {
+  const { createHash } = await import('crypto');
+  const body = Buffer.alloc(300_000, 7);
+  const want = createHash('sha256').update(body).digest();
+  await withServer((req, res) => {
+    if (req.url!.includes('missing')) { res.statusCode = 404; res.end(); return; }
+    if (req.url!.includes('boom')) { res.statusCode = 500; res.end('secret detail'); return; }
+    res.statusCode = 200; res.write(body.subarray(0, 100_000)); res.end(body.subarray(100_000));
+  }, async (url, seen) => {
+    const s = new SupabaseStorage({ url, key: JWT, bucket: 'property-files' });
+    assert.deepEqual(await s.sha256('org/o/v.mp4'), want);
+    assert.equal(seen[0].url, '/storage/v1/object/authenticated/property-files/org/o/v.mp4');
+    assert.equal(await s.sha256('org/o/missing.mp4'), null);
+    await assert.rejects(() => s.sha256('org/o/boom.mp4'), (e: Error) => e.message === 'storage_hash_failed_500');
+  });
+  const f = new FakeStorage(); f.put('a', body);
+  assert.deepEqual(await f.sha256('a'), want); assert.equal(await f.sha256('b'), null);
+});

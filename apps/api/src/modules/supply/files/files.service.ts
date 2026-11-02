@@ -41,7 +41,8 @@ export class FilesService {
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [propertyId]);   // two uploads at once cannot both slip under the limit
       const n = (await c.query(
         `SELECT count(*)::int n FROM supply.files WHERE property_id=$1 AND kind=$2 AND unit_id IS NOT DISTINCT FROM $3::uuid
-            AND (status='ready' OR (status='pending' AND created_at > now() - interval '${PENDING_GRACE}'))`, [propertyId, req.kind, req.unitId ?? null])).rows[0].n;
+            AND (status='ready' OR (status='pending' AND created_at > now() - interval '${PENDING_GRACE}'))
+            AND NOT EXISTS (SELECT 1 FROM verification.t2_takes t WHERE t.file_id = supply.files.id)`, [propertyId, req.kind, req.unitId ?? null])).rows[0].n;
       if (n >= KIND_RULES[req.kind].maxPerScope) throw new ConflictException(`The limit of ${KIND_RULES[req.kind].maxPerScope} ${req.kind}s here has been reached`);
       row = (await c.query(
         `INSERT INTO supply.files (id, org_id, property_id, unit_id, kind, doc_type, storage_path, original_name, mime_type, size_bytes, uploaded_by)
@@ -88,7 +89,7 @@ export class FilesService {
     await this.assertProperty(orgId, propertyId);
     const where = unitId === 'none' ? 'AND unit_id IS NULL' : unitId ? 'AND unit_id = $3' : '';
     const args: unknown[] = [orgId, propertyId]; if (unitId && unitId !== 'none') args.push(unitId);
-    return (await this.pool.query(`SELECT ${PUBLIC} FROM supply.files WHERE org_id=$1 AND property_id=$2 AND status='ready' ${where} ORDER BY created_at, id`, args)).rows;
+    return (await this.pool.query(`SELECT ${PUBLIC} FROM supply.files WHERE org_id=$1 AND property_id=$2 AND status='ready' AND NOT EXISTS (SELECT 1 FROM verification.t2_takes t WHERE t.file_id = supply.files.id) ${where} ORDER BY created_at, id`, args)).rows;
   }
 
   /** A link that opens the file for 5 minutes. Every link handed out is written to the access log. */

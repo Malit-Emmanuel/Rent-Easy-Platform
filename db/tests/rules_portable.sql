@@ -4,6 +4,15 @@ DO $$
 DECLARE passed int := 0; failed text[] := '{}';
 BEGIN
   SET CONSTRAINTS ALL IMMEDIATE;
+  -- Test helper only: records a take for every evidence row so the S5a tests need not repeat it. The S5b tests switch it off.
+  CREATE FUNCTION verification.test_auto_take() RETURNS trigger AS $f$
+  BEGIN
+    INSERT INTO verification.t2_takes(file_id, challenge_id, take_no)
+    SELECT NEW.video_file_id, NEW.challenge_id, coalesce((SELECT max(take_no) FROM verification.t2_takes WHERE challenge_id = NEW.challenge_id), 0) + 1
+    ON CONFLICT DO NOTHING;
+    RETURN NEW;
+  END $f$ LANGUAGE plpgsql;
+  CREATE TRIGGER a_auto_take BEFORE INSERT ON verification.t2_evidence FOR EACH ROW EXECUTE FUNCTION verification.test_auto_take();
 
   -- audit chain links, and cannot be edited or deleted
   INSERT INTO governance.audit_events(action,subject_type,subject_id) VALUES ('t1','x','1');
@@ -388,6 +397,40 @@ BEGIN
     BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
       VALUES (cg,1,chg3,vg_ok,sha,-1.34,36.85,12,now()+interval '6 minutes',-1.34,36.85,12,now()+interval '7 minutes'); failed := failed || 'a video older than the challenge accepted';
     EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    -- ===== S5b: every recording is tied to the challenge it was made for =====
+    ALTER TABLE verification.t2_evidence DISABLE TRIGGER a_auto_take;
+    INSERT INTO supply.files(id,org_id,property_id,kind,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at,created_at) VALUES
+      ('e5000000-0000-0000-0000-0000000000e1',org,pg,'video','s5b/t1','video/mp4',1000,'ready',sub,now(),now()+interval '6 minutes'),
+      ('e5000000-0000-0000-0000-0000000000e2',org,pg,'video','s5b/t2','video/mp4',1000,'ready',sub,now(),now()+interval '6 minutes'),
+      ('e5000000-0000-0000-0000-0000000000e3',org,pg,'video','s5b/t3','video/mp4',1000,'ready',sub,now(),now()+interval '6 minutes'),
+      ('e5000000-0000-0000-0000-0000000000e4',org,pg,'video','s5b/t4','video/mp4',1000,'ready',sub,now(),now()+interval '6 minutes');
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg3,'e5000000-0000-0000-0000-0000000000e1',sha,-1.34,36.85,12,now()+interval '6 minutes',-1.34,36.85,12,now()+interval '7 minutes'); failed := failed || 'a video with no take accepted';
+    EXCEPTION WHEN raise_exception THEN IF SQLERRM LIKE '%not recorded for this challenge%' THEN passed := passed + 1; ELSE failed := failed || ('wrong refusal for a missing take: ' || SQLERRM); END IF; END;
+    BEGIN INSERT INTO verification.t2_takes(file_id,challenge_id,take_no) VALUES (vg_other,chg3,1); failed := failed || 'a take from someone else accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_takes(file_id,challenge_id,take_no) VALUES (vb2,chg3,1); failed := failed || 'a take of another property accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_takes(file_id,challenge_id,take_no) VALUES (vg_doc,chg3,1); failed := failed || 'a document accepted as a take';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_takes(file_id,challenge_id,take_no) VALUES ('e5000000-0000-0000-0000-0000000000e1',chg3,1); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid take rejected: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.t2_takes(file_id,challenge_id,take_no) VALUES ('e5000000-0000-0000-0000-0000000000e2',chg3,1); failed := failed || 'two takes with the same number accepted';
+    EXCEPTION WHEN unique_violation THEN passed := passed + 1; END;
+    INSERT INTO verification.t2_takes(file_id,challenge_id,take_no) VALUES ('e5000000-0000-0000-0000-0000000000e2',chg3,2), ('e5000000-0000-0000-0000-0000000000e3',chg3,3);
+    BEGIN INSERT INTO verification.t2_takes(file_id,challenge_id,take_no) VALUES ('e5000000-0000-0000-0000-0000000000e4',chg3,4); failed := failed || 'a fourth take accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.t2_takes SET take_no = 1 WHERE file_id='e5000000-0000-0000-0000-0000000000e3'; failed := failed || 'take edited';
+    EXCEPTION WHEN raise_exception OR unique_violation THEN passed := passed + 1; END;
+    BEGIN DELETE FROM verification.t2_takes WHERE challenge_id=chg3; failed := failed || 'takes deleted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg3,'e5000000-0000-0000-0000-0000000000e4',sha,-1.34,36.85,12,now()+interval '6 minutes',-1.34,36.85,12,now()+interval '7 minutes'); failed := failed || 'a take of a different video accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg3,'e5000000-0000-0000-0000-0000000000e3',sha,-1.34,36.85,12,now()+interval '6 minutes',-1.34,36.85,12,now()+interval '7 minutes'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('evidence with a proper take rejected: ' || SQLERRM); END;
+    ALTER TABLE verification.t2_evidence ENABLE TRIGGER a_auto_take;
 
     -- valid evidence on property A, then it is locked down
     INSERT INTO supply.files(id,org_id,property_id,kind,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at) VALUES (va,org,pa,'video','s5/va','video/mp4',1000,'ready',sub,now());

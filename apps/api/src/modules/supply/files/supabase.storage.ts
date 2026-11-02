@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { SignedUpload, StoragePort, StoredHead } from './storage.port';
 
 export interface SupabaseStorageConfig { url: string; key: string; bucket: string }
@@ -54,6 +55,17 @@ export class SupabaseStorage implements StoragePort {
     if (!rel) this.fail('sign_download_shape', 200);
     const full = /^https?:\/\//.test(rel!) ? rel! : this.base() + (rel!.startsWith('/') ? rel! : '/' + rel!);
     return downloadName ? `${full}${full.includes('?') ? '&' : '?'}download=${encodeURIComponent(downloadName)}` : full;
+  }
+
+  /** Streams the object through a hash; nothing is kept in memory beyond one chunk. */
+  async sha256(path: string): Promise<Buffer | null> {
+    const r = await this.fetchFn(`${this.base()}/object/authenticated/${this.cfg.bucket}/${this.enc(path)}`, { headers: this.auth() });
+    if (r.status === 404) return null;
+    if (r.status === 400) { const j: any = await r.json().catch(() => null); if (j?.statusCode === '404' || j?.error === 'not_found') return null; this.fail('hash', 400); }
+    if (!r.ok || !r.body) this.fail('hash', r.status);
+    const h = createHash('sha256'); const reader = r.body!.getReader();
+    for (;;) { const { done, value } = await reader.read(); if (done) break; h.update(value); }
+    return h.digest();
   }
 
   async remove(path: string): Promise<void> {

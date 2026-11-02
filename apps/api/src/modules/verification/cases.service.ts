@@ -28,8 +28,9 @@ export class CasesService {
     const cases = (await this.pool.query(
       `SELECT id, status, submitted_at, due_at, paused_at, decided_at, reason_code, note, appeal_of,
               EXISTS (SELECT 1 FROM verification.cases a WHERE a.appeal_of = c.id) AS has_appeal
-         FROM verification.cases c WHERE property_id=$1 ORDER BY submitted_at DESC, id LIMIT 5`, [propertyId])).rows;
+         FROM verification.cases c WHERE property_id=$1 AND tier='t1' ORDER BY submitted_at DESC, id LIMIT 5`, [propertyId])).rows;
     const latest = cases[0] ?? null;
+    const anyOpen = (await this.pool.query(`SELECT 1 FROM verification.cases WHERE property_id=$1 AND status IN ('submitted','in_review','needs_changes')`, [propertyId])).rowCount! > 0;
     const badge = (await this.pool.query(
       `SELECT expires_at FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' AND revoked_at IS NULL AND expires_at > now()
         ORDER BY expires_at DESC LIMIT 1`, [propertyId])).rows[0];
@@ -37,7 +38,7 @@ export class CasesService {
       `SELECT revoked_at, revoke_reason_code, revoke_note, expires_at FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' ORDER BY issued_at DESC LIMIT 1`, [propertyId])).rows[0] ?? null;
     const docTypes = (await this.docs(propertyId)).map((d) => d.doc_type);
     const missing = missingProof(docTypes, prop.org_kind);
-    const open = latest && ['submitted', 'in_review', 'needs_changes'].includes(latest.status);
+    const open = anyOpen;
     return {
       verified: !!badge, verifiedUntil: badge?.expires_at ?? null,
       case: latest && {
@@ -101,7 +102,7 @@ export class CasesService {
     await this.requireIdVerified(userId);
     const last = (await this.pool.query(
       `SELECT id, status, decided_at, appeal_of, EXISTS (SELECT 1 FROM verification.cases a WHERE a.appeal_of = c.id) AS has_appeal
-         FROM verification.cases c WHERE property_id=$1 ORDER BY submitted_at DESC, id LIMIT 1`, [propertyId])).rows[0];
+         FROM verification.cases c WHERE property_id=$1 AND tier='t1' ORDER BY submitted_at DESC, id LIMIT 1`, [propertyId])).rows[0];
     if (!last || !canAppeal({ status: last.status, decidedAt: last.decided_at, appealOf: last.appeal_of, hasAppeal: last.has_appeal }, new Date()))
       throw new ConflictException('There is no rejected case that can be appealed');
     return this.create(orgId, propertyId, userId, last.id);
@@ -114,7 +115,7 @@ export class CasesService {
       await c.query('BEGIN');
       const prop = await this.property(orgId, propertyId, c);
       await c.query('SELECT 1 FROM supply.properties WHERE id=$1 FOR UPDATE', [propertyId]);
-      const cur = (await c.query(`SELECT id, due_at, paused_at FROM verification.cases WHERE property_id=$1 AND status='needs_changes' FOR UPDATE`, [propertyId])).rows[0];
+      const cur = (await c.query(`SELECT id, due_at, paused_at FROM verification.cases WHERE property_id=$1 AND status='needs_changes' AND tier='t1' FOR UPDATE`, [propertyId])).rows[0];
       if (!cur) throw new ConflictException({ code: 'nothing_to_resubmit', message: 'There is no request waiting for changes.' });
       const docs = await this.docs(propertyId, c);
       const missing = missingProof(docs.map((d) => d.doc_type), prop.org_kind);

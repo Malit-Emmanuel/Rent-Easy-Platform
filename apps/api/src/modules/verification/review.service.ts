@@ -15,7 +15,7 @@ export class ReviewService {
   constructor(@Inject(PG_POOL) private pool: Pool, @Inject(AuditService) private audit: AuditService, @Inject(STORAGE_PORT) private storage: StoragePort | null) {}
 
   private static readonly SELECT = `
-    SELECT c.id, c.status, c.submitted_at, c.due_at, c.risk_flags, c.appeal_of IS NOT NULL AS is_appeal, c.claimed_by, c.claimed_at,
+    SELECT c.id, c.tier, c.status, c.submitted_at, c.due_at, c.risk_flags, c.appeal_of IS NOT NULL AS is_appeal, c.claimed_by, c.claimed_at,
            p.name AS property_name, p.address_text, o.name AS org_name,
            (SELECT count(*)::int FROM verification.case_files cf WHERE cf.case_id = c.id) AS file_count
       FROM verification.cases c
@@ -36,7 +36,7 @@ export class ReviewService {
   async queue(reviewerId: string) {
     const rows = (await this.pool.query(
       `${ReviewService.SELECT}
-        WHERE ((c.status = 'submitted') OR (c.status = 'in_review' AND c.claimed_by = $1))
+        WHERE c.tier = 't1' AND ((c.status = 'submitted') OR (c.status = 'in_review' AND c.claimed_by = $1))
           AND NOT EXISTS (SELECT 1 FROM identity.memberships m WHERE m.user_id = $1 AND m.org_id = c.org_id)
           AND NOT (c.appeal_of IS NOT NULL AND EXISTS (SELECT 1 FROM verification.cases o WHERE o.id = c.appeal_of AND o.decided_by = $1))
         ORDER BY (c.claimed_by = $1) DESC NULLS LAST, c.due_at ASC, cardinality(c.risk_flags) DESC, c.submitted_at ASC LIMIT 200`, [reviewerId])).rows;
@@ -50,7 +50,7 @@ export class ReviewService {
       await c.query('BEGIN');
       const row = (await c.query(`${ReviewService.SELECT} WHERE c.id = $1 FOR UPDATE OF c`, [caseId])).rows[0];
       // Same answer for "does not exist" and "you may not see it", so a reviewer cannot probe other organisations.
-      const hidden = !row || (await c.query(`SELECT 1 FROM identity.memberships WHERE user_id=$1 AND org_id=(SELECT org_id FROM verification.cases WHERE id=$2)`, [reviewerId, caseId])).rowCount! > 0
+      const hidden = !row || row.tier !== 't1' || (await c.query(`SELECT 1 FROM identity.memberships WHERE user_id=$1 AND org_id=(SELECT org_id FROM verification.cases WHERE id=$2)`, [reviewerId, caseId])).rowCount! > 0
         || (row.is_appeal && (await c.query(`SELECT 1 FROM verification.cases o JOIN verification.cases a ON a.appeal_of = o.id WHERE a.id=$1 AND o.decided_by=$2`, [caseId, reviewerId])).rowCount! > 0);
       if (hidden) throw new NotFoundException('Case not found');
       if (row.status === 'in_review' && row.claimed_by === reviewerId) { await c.query('COMMIT'); return this.shape(row, reviewerId); }   // claiming twice is harmless
