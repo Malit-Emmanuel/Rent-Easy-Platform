@@ -230,6 +230,17 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN failed := failed || ('attach to approved case failed: ' || SQLERRM); END;
     BEGIN UPDATE supply.files SET status='deleted', deleted_at=now() WHERE id=doc; failed := failed || 'evidence of an approved case could be deleted';
     EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    -- revoking a badge: reason code mandatory, "other" needs a note, and a revoked badge stays revoked
+    BEGIN UPDATE verification.badges SET revoked_at=now() WHERE id=badge; failed := failed || 'revoke without a reason accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.badges SET revoked_at=now(), revoke_reason_code='other' WHERE id=badge; failed := failed || 'revoke "other" without a note accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.badges SET revoked_at=now(), revoke_reason_code='suspected_forgery', revoke_note='Seal copied from another deed' WHERE id=badge; passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid revoke failed: ' || SQLERRM); END;
+    BEGIN UPDATE verification.badges SET revoked_at=NULL WHERE id=badge; failed := failed || 'revoked badge brought back';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.badges SET expires_at=now()+interval '5 years' WHERE id=badge; failed := failed || 'revoked badge extended';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
   END;
 
   RAISE EXCEPTION 'RULES: % passed, % failed %', passed, cardinality(failed), failed;

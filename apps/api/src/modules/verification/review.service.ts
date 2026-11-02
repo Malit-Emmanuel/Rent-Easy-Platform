@@ -2,7 +2,7 @@ import { BadGatewayException, BadRequestException, ConflictException, Inject, In
 import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
 import { STORAGE_PORT, StoragePort } from '../supply/files/storage.port';
-import { badgeExpiry, checkDecision } from './cases.rules';
+import { badgeExpiry, checkDecision, checkRevoke } from './cases.rules';
 
 const LINK_TTL_SEC = 300;   // a document link works for 5 minutes
 
@@ -143,6 +143,38 @@ export class ReviewService {
         [reviewerId, `verification.${status}`, caseId, JSON.stringify({ propertyId: row.property_id, orgId: row.org_id, reasonCode: reason, badgeId, flagged: reason === 'suspected_forgery' })]);
       await c.query('COMMIT');
       return { id: caseId, status, reasonCode: reason, badgeId };
+    } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
+  }
+
+  /** Active documented badges a reviewer may revoke (never those of an organisation they belong to), soonest to expire first. */
+  async badges(reviewerId: string) {
+    const rows = (await this.pool.query(
+      `SELECT b.id, b.issued_at, b.expires_at, p.name AS property_name, p.address_text, o.name AS org_name
+         FROM verification.badges b JOIN supply.properties p ON p.id = b.subject_id JOIN identity.organizations o ON o.id = p.org_id
+        WHERE b.subject_type='property' AND b.level='t1_documented' AND b.revoked_at IS NULL AND b.expires_at > now()
+          AND NOT EXISTS (SELECT 1 FROM identity.memberships m WHERE m.user_id=$1 AND m.org_id = p.org_id)
+        ORDER BY b.expires_at ASC LIMIT 200`, [reviewerId])).rows;
+    await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, resource, reason) VALUES ($1,'verification_badge_list',$2)`, [reviewerId, `listed ${rows.length}`]);
+    return rows.map((r: any) => ({ id: r.id, propertyName: r.property_name, address: r.address_text, orgName: r.org_name, issuedAt: r.issued_at, expiresAt: r.expires_at }));
+  }
+
+  /** Withdraw a badge. A reason code is mandatory; the property stops counting as verified at once. */
+  async revoke(badgeId: string, reviewerId: string, body: { reasonCode?: unknown; note?: unknown }) {
+    const bad = checkRevoke(body); if (bad) throw new BadRequestException(bad);
+    const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
+    const c = await this.pool.connect();
+    try {
+      await c.query('BEGIN');
+      const row = (await c.query(
+        `SELECT b.id, b.subject_id, p.org_id FROM verification.badges b JOIN supply.properties p ON p.id = b.subject_id
+          WHERE b.id=$1 AND b.subject_type='property' AND b.level='t1_documented' AND b.revoked_at IS NULL AND b.expires_at > now() FOR UPDATE OF b`, [badgeId])).rows[0];
+      const own = row && (await c.query('SELECT 1 FROM identity.memberships WHERE user_id=$1 AND org_id=$2', [reviewerId, row.org_id])).rowCount! > 0;
+      if (!row || own) throw new NotFoundException('Badge not found');
+      await c.query(`UPDATE verification.badges SET revoked_at=now(), revoke_reason_code=$2, revoke_note=$3 WHERE id=$1`, [badgeId, body.reasonCode, note]);
+      await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,'verification.badge_revoked','badge',$2,$3)`,
+        [reviewerId, badgeId, JSON.stringify({ propertyId: row.subject_id, orgId: row.org_id, reasonCode: body.reasonCode, flagged: body.reasonCode === 'suspected_forgery' })]);
+      await c.query('COMMIT');
+      return { id: badgeId, revoked: true, reasonCode: body.reasonCode };
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
   }
 }

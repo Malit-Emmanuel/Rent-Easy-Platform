@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException, HttpException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
-import { APPEAL_WINDOW_DAYS, T1_DEADLINE_WORKING_DAYS, addWorkingDays, canAppeal, missingProof, riskFlags } from './cases.rules';
+import { APPEAL_WINDOW_DAYS, canRenew, T1_DEADLINE_WORKING_DAYS, addWorkingDays, canAppeal, missingProof, riskFlags } from './cases.rules';
 
 /**
  * Manager side of T1 review. Everything is locked to the organisation in the URL.
@@ -33,6 +33,8 @@ export class CasesService {
     const badge = (await this.pool.query(
       `SELECT expires_at FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' AND revoked_at IS NULL AND expires_at > now()
         ORDER BY expires_at DESC LIMIT 1`, [propertyId])).rows[0];
+    const ended = badge ? null : (await this.pool.query(
+      `SELECT revoked_at, revoke_reason_code, revoke_note, expires_at FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' ORDER BY issued_at DESC LIMIT 1`, [propertyId])).rows[0] ?? null;
     const docTypes = (await this.docs(propertyId)).map((d) => d.doc_type);
     const missing = missingProof(docTypes, prop.org_kind);
     const open = latest && ['submitted', 'in_review', 'needs_changes'].includes(latest.status);
@@ -44,7 +46,8 @@ export class CasesService {
         canResubmit: latest.status === 'needs_changes',
         canAppeal: canAppeal({ status: latest.status, decidedAt: latest.decided_at, appealOf: latest.appeal_of, hasAppeal: latest.has_appeal }, new Date()),
       },
-      missingProof: missing, canRequest: !badge && !open,
+      badgeEnded: ended ? { kind: ended.revoked_at ? 'revoked' : 'expired', on: ended.revoked_at ?? ended.expires_at, reasonCode: ended.revoke_reason_code ?? null, note: ended.revoke_note ?? null } : null,
+      missingProof: missing, canRequest: !open && canRenew(badge ? { expiresAt: new Date(badge.expires_at), revokedAt: null } : null, new Date()),
       appealWindowDays: APPEAL_WINDOW_DAYS,
     };
   }
@@ -64,9 +67,10 @@ export class CasesService {
       const missing = missingProof(docs.map((d) => d.doc_type), prop.org_kind);
       if (missing.length) throw new HttpException({ code: 'proof_missing', message: 'Upload the required documents first.', missing }, 422);
       const prior = (await c.query(`SELECT count(*)::int n FROM verification.cases WHERE property_id=$1 AND status='rejected'`, [propertyId])).rows[0].n;
+      const revoked = (await c.query(`SELECT count(*)::int n FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' AND revoked_at IS NOT NULL`, [propertyId])).rows[0].n;
       const now = new Date();
       const flags = riskFlags({
-        orgAgeDays: (now.getTime() - new Date(prop.org_created).getTime()) / 86_400_000, priorRejections: prior, docTypes: docs.map((d) => d.doc_type),
+        priorRevocations: revoked, orgAgeDays: (now.getTime() - new Date(prop.org_created).getTime()) / 86_400_000, priorRejections: prior, docTypes: docs.map((d) => d.doc_type),
         newestDocAgeMinutes: Math.min(...docs.map((d) => (now.getTime() - new Date(d.ready_at).getTime()) / 60_000)), isAppeal: !!appealOf,
       });
       let row;
@@ -87,8 +91,8 @@ export class CasesService {
   async request(orgId: string, propertyId: string, userId: string) {
     await this.property(orgId, propertyId);
     await this.requireIdVerified(userId);
-    const valid = (await this.pool.query(`SELECT 1 FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' AND revoked_at IS NULL AND expires_at > now() LIMIT 1`, [propertyId])).rows[0];
-    if (valid) throw new ConflictException('This property is already verified');
+    const valid = (await this.pool.query(`SELECT expires_at FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' AND revoked_at IS NULL AND expires_at > now() ORDER BY expires_at DESC LIMIT 1`, [propertyId])).rows[0];
+    if (valid && !canRenew({ expiresAt: new Date(valid.expires_at), revokedAt: null }, new Date())) throw new ConflictException('This property is already verified');
     return this.create(orgId, propertyId, userId, null);
   }
 

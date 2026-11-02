@@ -29,7 +29,7 @@ export function missingProof(docTypes: string[], orgKind: string): string[] {
   return missing;
 }
 
-export interface RiskInput { orgAgeDays: number; priorRejections: number; docTypes: string[]; newestDocAgeMinutes: number; isAppeal: boolean }
+export interface RiskInput { orgAgeDays: number; priorRejections: number; docTypes: string[]; newestDocAgeMinutes: number; isAppeal: boolean; priorRevocations?: number }
 /** Flags only change the order of the queue. They never decide anything. */
 export function riskFlags(i: RiskInput): string[] {
   const f: string[] = [];
@@ -37,6 +37,7 @@ export function riskFlags(i: RiskInput): string[] {
   if (i.priorRejections > 0) f.push('previously_rejected');
   if (!i.docTypes.includes('title_deed') && i.docTypes.includes('lease_agreement')) f.push('lease_only');
   if (i.newestDocAgeMinutes < 60) f.push('fresh_upload');
+  if ((i.priorRevocations ?? 0) > 0) f.push('previously_revoked');
   if (i.isAppeal) f.push('appeal');
   return f;
 }
@@ -53,6 +54,13 @@ export function badgeValid(b: { expiresAt: Date; revokedAt: Date | null } | null
 
 export const REASON_CODES = ['doc_unreadable', 'doc_owner_mismatch', 'doc_expired', 'authorisation_missing', 'property_mismatch', 'suspected_forgery', 'other'] as const;
 export const BADGE_MONTHS = 12;
+export const RENEWAL_WINDOW_DAYS = 30;   // a badge can be renewed in its last 30 days, so there is no gap
+
+/** Whether a new request is allowed given the current badge (if any). */
+export function canRenew(badge: { expiresAt: Date; revokedAt: Date | null } | null, now: Date): boolean {
+  if (!badge || badge.revokedAt || badge.expiresAt.getTime() <= now.getTime()) return true;
+  return badge.expiresAt.getTime() - now.getTime() <= RENEWAL_WINDOW_DAYS * 86_400_000;
+}
 export type Decision = 'approve' | 'needs_changes' | 'reject';
 
 /** Returns an error message, or null when the decision is well formed. Approving needs no reason; the other two always do. */
@@ -69,3 +77,13 @@ export function checkDecision(d: { decision?: unknown; reasonCode?: unknown; not
 
 /** Twelve calendar months from the issue date. */
 export function badgeExpiry(from: Date): Date { const d = new Date(from); d.setUTCMonth(d.getUTCMonth() + BADGE_MONTHS); return d; }
+
+/** A revoke always needs a valid reason code; "other" also needs a written note. */
+export function checkRevoke(d: { reasonCode?: unknown; note?: unknown }): string | null {
+  if (d.note !== undefined && d.note !== null && typeof d.note !== 'string') return 'note must be text';
+  const note = typeof d.note === 'string' ? d.note.trim() : '';
+  if (note.length > 500) return 'note is limited to 500 characters';
+  if (typeof d.reasonCode !== 'string' || !(REASON_CODES as readonly string[]).includes(d.reasonCode)) return 'a valid reason code is required';
+  if (d.reasonCode === 'other' && !note) return 'the reason "other" needs a written note';
+  return null;
+}

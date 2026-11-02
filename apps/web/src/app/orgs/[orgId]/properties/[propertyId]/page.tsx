@@ -68,6 +68,8 @@ export default function PropertyPage() {
   return (
     <>
       <PageHead back={{ href: `/orgs/${orgId}/properties`, label: t('properties') }} eyebrow={p.nodeName ?? undefined} title={p.name}><span className="badge">{units.length} {units.length === 1 ? t('unitOne') : t('unitCount')}</span></PageHead>
+      <VerificationCard orgId={orgId} propertyId={propertyId} canWrite={canWrite} />
+
       {canWrite ? (
         <form onSubmit={save} className="panel">
           <label htmlFor="n">{t('propertyName')}</label><input id="n" value={name} onChange={(e) => setName(e.target.value)} minLength={2} maxLength={120} required />
@@ -82,8 +84,6 @@ export default function PropertyPage() {
           <div className="row"><button>{t('save')}</button>{canArchive && <button type="button" className="danger" onClick={archiveProperty}>{t('archive')}</button>}</div>
         </form>
       ) : <p className="panel msg">{p.addressText}</p>}
-
-      <VerificationCard orgId={orgId} propertyId={propertyId} canWrite={canWrite} />
 
       <h2>{t('files')}</h2>
       <FilePanel orgId={orgId} propertyId={propertyId} kinds={['document', 'photo', 'video']} canWrite={canWrite} canArchive={canArchive} />

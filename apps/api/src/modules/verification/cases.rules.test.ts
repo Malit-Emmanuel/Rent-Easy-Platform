@@ -63,3 +63,32 @@ test('decisions: approve needs no reason; reject and needs_changes need a valid 
 test('a T1 badge lasts twelve months', () => {
   assert.equal(badgeExpiry(d('2026-10-29T09:00:00Z')).toISOString(), '2027-10-29T09:00:00.000Z');
 });
+
+import { checkRevoke } from './cases.rules';
+
+test('revoking: a valid reason code is always required, and "other" needs a note', () => {
+  assert.ok(checkRevoke({}));
+  assert.ok(checkRevoke({ reasonCode: 'nope' }));
+  assert.ok(checkRevoke({ reasonCode: 'other' }));
+  assert.ok(checkRevoke({ reasonCode: 'other', note: '  ' }));
+  assert.ok(checkRevoke({ reasonCode: 'doc_expired', note: 'x'.repeat(501) }));
+  assert.equal(checkRevoke({ reasonCode: 'suspected_forgery' }), null);
+  assert.equal(checkRevoke({ reasonCode: 'other', note: 'Owner disputes the authorisation' }), null);
+});
+
+test('a property whose badge was revoked before is flagged', () => {
+  const base = { orgAgeDays: 90, priorRejections: 0, docTypes: ['title_deed'], newestDocAgeMinutes: 500, isAppeal: false };
+  assert.deepEqual(riskFlags({ ...base, priorRevocations: 1 }), ['previously_revoked']);
+  assert.deepEqual(riskFlags({ ...base, priorRevocations: 0 }), []);
+});
+
+import { canRenew } from './cases.rules';
+
+test('renewal is allowed with no badge, an ended badge, or in the last 30 days only', () => {
+  const now = d('2026-11-02T00:00:00Z');
+  assert.equal(canRenew(null, now), true);
+  assert.equal(canRenew({ expiresAt: d('2026-12-01T00:00:00Z'), revokedAt: null }, now), true);     // 29 days left
+  assert.equal(canRenew({ expiresAt: d('2026-12-10T00:00:00Z'), revokedAt: null }, now), false);    // 38 days left
+  assert.equal(canRenew({ expiresAt: d('2026-10-01T00:00:00Z'), revokedAt: null }, now), true);     // expired
+  assert.equal(canRenew({ expiresAt: d('2027-10-01T00:00:00Z'), revokedAt: d('2026-10-30T00:00:00Z') }, now), true);   // revoked
+});

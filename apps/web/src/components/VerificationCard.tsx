@@ -5,6 +5,7 @@ import { api } from '@/lib/client';
 
 type Status = {
   verified: boolean; verifiedUntil: string | null; canRequest: boolean; missingProof: string[]; appealWindowDays: number;
+  badgeEnded: null | { kind: 'revoked' | 'expired'; on: string; reasonCode: string | null; note: string | null };
   case: null | { status: string; dueAt: string | null; reasonCode: string | null; note: string | null; canAppeal: boolean; canResubmit?: boolean; isAppeal?: boolean };
 };
 
@@ -17,8 +18,13 @@ export default function VerificationCard({ orgId, propertyId, canWrite }: { orgI
 
   const word = (k: string) => (t as any)(k);
   const c = s.case;
-  const label = s.verified ? t('pvApproved') : !c ? t('pvNone') : c.status === 'submitted' && c.isAppeal ? t('pvAppealOpen') : word('pv' + c.status.charAt(0).toUpperCase() + c.status.slice(1));
-  const tone = s.verified ? 'ok' : c?.status === 'rejected' ? 'bad' : c ? 'wait' : 'none';
+  const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+  const label = s.verified ? t('pvApproved')
+    : s.badgeEnded ? word(s.badgeEnded.kind === 'revoked' ? 'pvRevoked' : 'pvExpired')
+    : !c ? t('pvNone')
+    : c.isAppeal && ['submitted', 'in_review'].includes(c.status) ? t('pvAppealOpen')
+    : word('pv' + cap(c.status));
+  const tone = s.verified ? 'ok' : s.badgeEnded || c?.status === 'rejected' ? 'bad' : c ? 'wait' : 'none';
 
   async function go(path: string, done: string) {
     setBusy(true); setErr(''); setMsg('');
@@ -35,15 +41,19 @@ export default function VerificationCard({ orgId, propertyId, canWrite }: { orgI
   return (
     <section className="panel vcard" aria-labelledby="pv-h">
       <div className="row between"><h2 id="pv-h">{t('propVerif')}</h2><span className={`vstate ${tone}`}>{label}</span></div>
-      {s.verified && s.verifiedUntil && <p className="msg">{t('pvVerifiedUntil')} {new Date(s.verifiedUntil).toLocaleDateString()}</p>}
+      {s.verified && s.verifiedUntil && <p className="msg">{t('pvVerifiedUntil')} {new Date(s.verifiedUntil).toLocaleDateString()}{s.canRequest ? ` · ${t('pvRenewSoon')}` : ''}</p>}
+      {!s.verified && s.badgeEnded && (
+        <p className="msg">{s.badgeEnded.kind === 'expired' ? `${t('pvExpiredOn')} ${new Date(s.badgeEnded.on).toLocaleDateString()}.` : <><strong>{t('pvRevokedWhy')}:</strong> {s.badgeEnded.reasonCode ? word('rc_' + s.badgeEnded.reasonCode) : ''}{s.badgeEnded.note ? ` — ${s.badgeEnded.note}` : ''}</>} {t('pvAskAgain')}</p>
+      )}
       {!s.verified && c && ['submitted', 'in_review'].includes(c.status) && c.dueAt && <p className="msg">{t('pvDue')} {new Date(c.dueAt).toLocaleDateString()}. {t('pvEvidenceFrozen')}</p>}
-      {c && ['rejected', 'needs_changes'].includes(c.status) && (
+      {!s.verified && !s.badgeEnded && c && ['rejected', 'needs_changes'].includes(c.status) && (
         <p className="msg"><strong>{t('pvReason')}:</strong> {c.reasonCode ? word('rc_' + c.reasonCode) : ''}{c.note ? <><br /><strong>{t('pvNote')}:</strong> {c.note}</> : null}</p>
       )}
       {canWrite && s.canRequest && s.missingProof.length > 0 && (
         <div className="msg"><strong>{t('pvMissingTitle')}</strong><ul>{s.missingProof.map((m) => <li key={m}>{word('pvMissing_' + m)}</li>)}</ul></div>
       )}
-      {canWrite && s.canRequest && <button disabled={busy || s.missingProof.length > 0} onClick={() => go(url, t('pvRequested'))}>{t('pvRequest')}</button>}
+      {canWrite && s.canRequest && <button disabled={busy || s.missingProof.length > 0} onClick={() => go(url, t('pvRequested'))}>{s.verified ? t('pvRenew') : t('pvRequest')}</button>}
+      {c?.status === 'rejected' && c.isAppeal && !s.verified && <p className="msg"><strong>{t('pvFinal')}</strong></p>}
       {canWrite && c?.canAppeal && (<><p className="msg">{t('pvAppealHint').replace('{n}', String(s.appealWindowDays))}</p><button disabled={busy} onClick={() => go(`${url}/appeal`, t('pvAppealed'))}>{t('pvAppeal')}</button></>)}
       {canWrite && c?.canResubmit && (<><p className="msg">{t('pvResubmitHint')}</p><button disabled={busy} onClick={() => go(`${url}/resubmit`, t('pvResubmitted'))}>{t('pvResubmit')}</button></>)}
       {msg && <p className="msg" role="status">{msg}</p>}
