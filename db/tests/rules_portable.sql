@@ -243,5 +243,240 @@ BEGIN
     EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
   END;
 
+  -- ===== S5a: T2 video and location =====
+  DECLARE
+    org uuid := '11111111-1111-1111-1111-111111111111';
+    sub uuid := '81111111-1111-1111-1111-111111111111'; rev1 uuid := '82222222-2222-2222-2222-222222222222';
+    rev2 uuid := '83333333-3333-3333-3333-333333333333'; insider uuid := '84444444-4444-4444-4444-444444444444';
+    pa uuid := 'e1000000-0000-0000-0000-00000000000a'; pb uuid := 'e1000000-0000-0000-0000-00000000000b'; pc uuid := 'e1000000-0000-0000-0000-00000000000c';
+    pd uuid := 'e1000000-0000-0000-0000-00000000000d'; pe uuid := 'e1000000-0000-0000-0000-00000000000e'; pf uuid := 'e1000000-0000-0000-0000-00000000000f';
+    pg uuid := 'e1000000-0000-0000-0000-000000000010';
+    ua uuid := 'e2000000-0000-0000-0000-00000000000a'; ub uuid := 'e2000000-0000-0000-0000-00000000000b'; ug uuid := 'e2000000-0000-0000-0000-000000000010';
+    ua2 uuid := 'e2000000-0000-0000-0000-0000000000aa'; uc1 uuid; uc2 uuid; u_other uuid := 'e2000000-0000-0000-0000-0000000000ff';
+    cha uuid := 'e3000000-0000-0000-0000-00000000000a'; chb1 uuid := 'e3000000-0000-0000-0000-0000000000b1'; chb2 uuid := 'e3000000-0000-0000-0000-0000000000b2';
+    chg uuid := 'e3000000-0000-0000-0000-0000000000c1'; chg2 uuid := 'e3000000-0000-0000-0000-0000000000c2'; chg3 uuid := 'e3000000-0000-0000-0000-0000000000c3';
+    ca uuid := 'e4000000-0000-0000-0000-00000000000a'; cb uuid := 'e4000000-0000-0000-0000-00000000000b'; cg uuid := 'e4000000-0000-0000-0000-000000000010';
+    cf uuid := 'e4000000-0000-0000-0000-00000000000f'; cb_appeal uuid := 'e4000000-0000-0000-0000-0000000000b2';
+    va uuid := 'e5000000-0000-0000-0000-00000000000a'; vb1 uuid := 'e5000000-0000-0000-0000-0000000000b1'; vb2 uuid := 'e5000000-0000-0000-0000-0000000000b2';
+    vg_doc uuid := 'e5000000-0000-0000-0000-0000000000d0'; vg_pend uuid := 'e5000000-0000-0000-0000-0000000000d1'; vg_ok uuid := 'e5000000-0000-0000-0000-0000000000d2';
+    vg_other uuid := 'e5000000-0000-0000-0000-0000000000d3'; vg_early uuid := 'e5000000-0000-0000-0000-0000000000d4';
+    t1a uuid; t1b uuid; t1d uuid; t1f uuid; t1g uuid; t1c uuid; t2a uuid; wrong uuid; sha bytea := decode(repeat('ab', 32), 'hex'); sha2 bytea := decode(repeat('cd', 32), 'hex');
+    all_yes jsonb := '{"code_heard":true,"place_matches_address":true,"units_shown":true,"footage_continuous":true,"location_close":true,"matches_documents":true}';
+    one_no jsonb := '{"code_heard":true,"place_matches_address":true,"units_shown":false,"footage_continuous":true,"location_close":true,"matches_documents":true}';
+  BEGIN
+    -- properties: A main flow, B needs-changes and appeal, C many units, D no position, E no T1, F a T1 case, G time-window checks
+    INSERT INTO supply.properties(id,org_id,name,address_text,location) VALUES
+      (pa,org,'S5 A','a', extensions.st_point(36.80,-1.29)::extensions.geography), (pb,org,'S5 B','b', extensions.st_point(36.81,-1.30)::extensions.geography),
+      (pc,org,'S5 C','c', extensions.st_point(36.82,-1.31)::extensions.geography), (pd,org,'S5 D','d', NULL),
+      (pe,org,'S5 E','e', extensions.st_point(36.83,-1.32)::extensions.geography), (pf,org,'S5 F','f', extensions.st_point(36.84,-1.33)::extensions.geography),
+      (pg,org,'S5 G','g', extensions.st_point(36.85,-1.34)::extensions.geography);
+    INSERT INTO supply.units(id,property_id,label,bedrooms) VALUES (ua,pa,'A1',1),(ua2,pa,'A2',1),(ub,pb,'B1',1),(ug,pg,'G1',1),(u_other,pd,'D1',1);
+    UPDATE supply.units SET archived_at = now() WHERE id = ua2;
+    FOR i IN 1..11 LOOP INSERT INTO supply.units(property_id,label,bedrooms) VALUES (pc,'C'||i,1); END LOOP;
+    SELECT min(id::text)::uuid, max(id::text)::uuid INTO uc1, uc2 FROM supply.units WHERE property_id = pc;
+
+    -- a challenge needs a valid T1, a recorded position, a member, and the right units
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pa,sub,'4821',ARRAY[ua],now(),now()+interval '30 minutes');
+      failed := failed || 'challenge without T1 accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pa,'t1_documented',rev1,now(),now()+interval '12 months') RETURNING id INTO t1a;
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pb,'t1_documented',rev1,now(),now()+interval '12 months') RETURNING id INTO t1b;
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pc,'t1_documented',rev1,now(),now()+interval '12 months');
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pd,'t1_documented',rev1,now(),now()+interval '12 months');
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pf,'t1_documented',rev1,now(),now()+interval '12 months');
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pg,'t1_documented',rev1,now(),now()+interval '12 months');
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pe,'t1_documented',rev1,now()-interval '2 days',now()-interval '1 day');   -- expired
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pc,sub,'4821',ARRAY[]::uuid[],now(),now()+interval '30 minutes');
+      failed := failed || 'challenge with no units accepted';
+    EXCEPTION WHEN raise_exception OR check_violation THEN passed := passed + 1; END;
+    INSERT INTO supply.units(id,property_id,label,bedrooms) VALUES ('e2000000-0000-0000-0000-0000000000ee',pe,'E1',1);
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pe,sub,'4821',ARRAY['e2000000-0000-0000-0000-0000000000ee'::uuid],now(),now()+interval '30 minutes');
+      failed := failed || 'challenge with an expired T1 accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.cases(org_id,property_id,tier,submitted_by,due_at) VALUES (org,pe,'t2',sub,now()+interval '3 days'); failed := failed || 'T2 case without a valid T1 accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pd,sub,'4821',ARRAY[u_other],now(),now()+interval '30 minutes');
+      failed := failed || 'challenge for a property with no position accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pa,rev1,'4821',ARRAY[ua],now(),now()+interval '30 minutes');
+      failed := failed || 'challenge requested by a non-member accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pa,sub,'4821',ARRAY[ua,ua2],now(),now()+interval '30 minutes');
+      failed := failed || 'two units for a small property accepted';
+    EXCEPTION WHEN raise_exception OR check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pa,sub,'4821',ARRAY[ua2],now(),now()+interval '30 minutes');
+      failed := failed || 'an archived unit accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pa,sub,'4821',ARRAY[ub],now(),now()+interval '30 minutes');
+      failed := failed || 'a unit of another property accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pa,sub,'48x1',ARRAY[ua],now(),now()+interval '30 minutes');
+      failed := failed || 'a non-numeric code accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pa,sub,'4821',ARRAY[ua],now(),now()+interval '31 minutes');
+      failed := failed || 'a window over 30 minutes accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    -- a property with 11 units needs two different units shown
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pc,sub,'1111',ARRAY[uc1],now(),now()+interval '30 minutes');
+      failed := failed || 'one unit for a large property accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pc,sub,'1111',ARRAY[uc1,uc1],now(),now()+interval '30 minutes');
+      failed := failed || 'the same unit twice accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pc,sub,'1111',ARRAY[uc1,uc2],now(),now()+interval '30 minutes'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('two units for a large property rejected: ' || SQLERRM); END;
+
+    -- the main flow on property A
+    BEGIN INSERT INTO verification.t2_challenges(id,org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (cha,org,pa,sub,'4821',ARRAY[ua],now(),now()+interval '30 minutes'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid challenge rejected: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pa,sub,'9999',ARRAY[ua],now(),now()+interval '30 minutes');
+      failed := failed || 'a second active challenge accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.t2_challenges SET code='0000' WHERE id=cha; failed := failed || 'challenge code edited';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.t2_challenges SET expires_at = expires_at + interval '1 minute' WHERE id=cha; failed := failed || 'challenge extended';
+    EXCEPTION WHEN raise_exception OR check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.t2_challenges SET takes = 4 WHERE id=cha; failed := failed || 'a fourth take accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.t2_challenges SET takes = 2 WHERE id=cha; UPDATE verification.t2_challenges SET takes = 1 WHERE id=cha; failed := failed || 'takes counted down';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.cases(id,org_id,property_id,tier,submitted_by,due_at) VALUES (ca,org,pa,'t2',sub,now()+interval '3 days'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid T2 case rejected: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.cases(org_id,property_id,tier,submitted_by,due_at) VALUES (org,pf,'t3',sub,now()+interval '3 days'); failed := failed || 'unknown tier accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+
+    -- evidence rules, using property G with challenges that are already in the past
+    INSERT INTO verification.t2_challenges(id,org_id,property_id,requested_by,code,unit_ids,consent_at,issued_at,expires_at) VALUES
+      (chg,org,pg,sub,'1234',ARRAY[ug],now()-interval '60 minutes',now()-interval '60 minutes',now()-interval '30 minutes');          -- long expired
+    INSERT INTO verification.t2_challenges(id,org_id,property_id,requested_by,code,unit_ids,consent_at,issued_at,expires_at) VALUES
+      (chg2,org,pg,sub,'2345',ARRAY[ug],now()-interval '20 minutes',now()-interval '20 minutes',now()-interval '1 minute');
+    INSERT INTO verification.t2_challenges(id,org_id,property_id,requested_by,code,unit_ids,consent_at,issued_at,expires_at) VALUES
+      (chg3,org,pg,sub,'3456',ARRAY[ug],now(),now()+interval '5 minutes',now()+interval '30 minutes');
+    INSERT INTO verification.cases(id,org_id,property_id,tier,submitted_by,due_at) VALUES (cg,org,pg,'t2',sub,now()+interval '3 days');
+    INSERT INTO supply.files(id,org_id,property_id,kind,doc_type,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at) VALUES (vg_doc,org,pg,'document','title_deed','s5/doc','application/pdf',1000,'ready',sub,now());
+    INSERT INTO supply.files(id,org_id,property_id,kind,storage_path,mime_type,size_bytes,status,uploaded_by) VALUES (vg_pend,org,pg,'video','s5/pend','video/mp4',1000,'pending',sub);
+    INSERT INTO supply.files(id,org_id,property_id,kind,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at) VALUES (vg_ok,org,pg,'video','s5/ok','video/mp4',1000,'ready',sub,now());
+    INSERT INTO supply.files(id,org_id,property_id,kind,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at) VALUES (vg_other,org,pg,'video','s5/other','video/mp4',1000,'ready',insider,now());
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg,vg_ok,sha,-1.34,36.85,12,now()-interval '40 minutes',-1.34,36.85,12,now()-interval '39 minutes'); failed := failed || 'upload long after expiry accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg2,vg_ok,sha,-1.34,36.85,12,now()-interval '25 minutes',-1.34,36.85,12,now()-interval '24 minutes'); failed := failed || 'recording that started before the challenge accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg2,vg_doc,sha,-1.34,36.85,12,now()-interval '10 minutes',-1.34,36.85,12,now()-interval '9 minutes'); failed := failed || 'a document accepted as video evidence';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg2,vg_pend,sha,-1.34,36.85,12,now()-interval '10 minutes',-1.34,36.85,12,now()-interval '9 minutes'); failed := failed || 'an unfinished upload accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg2,vg_other,sha,-1.34,36.85,12,now()-interval '10 minutes',-1.34,36.85,12,now()-interval '9 minutes'); failed := failed || 'a video from someone else accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg2,vg_ok,sha,-1.34,36.85,12,now()-interval '10 minutes',-1.34,36.85,12,now()-interval '11 minutes'); failed := failed || 'readings in the wrong order accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg2,vg_ok,sha,51.5,-0.12,12,now()-interval '10 minutes',51.5,-0.12,12,now()-interval '9 minutes'); failed := failed || 'readings outside Kenya accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg2,vg_ok,decode('abcd','hex'),-1.34,36.85,12,now()-interval '10 minutes',-1.34,36.85,12,now()-interval '9 minutes'); failed := failed || 'a short fingerprint accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,2,chg2,vg_ok,sha,-1.34,36.85,12,now()-interval '10 minutes',-1.34,36.85,12,now()-interval '9 minutes'); failed := failed || 'attempt numbering skipped';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    -- a video uploaded before the challenge was issued is not live evidence
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cg,1,chg3,vg_ok,sha,-1.34,36.85,12,now()+interval '6 minutes',-1.34,36.85,12,now()+interval '7 minutes'); failed := failed || 'a video older than the challenge accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+
+    -- valid evidence on property A, then it is locked down
+    INSERT INTO supply.files(id,org_id,property_id,kind,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at) VALUES (va,org,pa,'video','s5/va','video/mp4',1000,'ready',sub,now());
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at,hints)
+      VALUES (ca,1,cha,va,sha,-1.2901,36.8001,9,now(),-1.2902,36.8002,11,now()+interval '1 minute','{"distance_m":20}'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid evidence rejected: ' || SQLERRM); END;
+    IF (SELECT used_at FROM verification.t2_challenges WHERE id=cha) IS NOT NULL THEN passed := passed + 1; ELSE failed := failed || 'challenge not marked used'; END IF;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (ca,2,cha,va,sha2,-1.29,36.80,9,now(),-1.29,36.80,9,now()+interval '1 minute'); failed := failed || 'a used challenge accepted again';
+    EXCEPTION WHEN raise_exception OR unique_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.t2_evidence SET start_lat = -1.0 WHERE case_id=ca; failed := failed || 'evidence edited';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN DELETE FROM verification.t2_evidence WHERE case_id=ca; failed := failed || 'evidence deleted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE supply.files SET status='deleted', deleted_at=now() WHERE id=va; failed := failed || 'video of an open case deleted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE supply.properties SET location = extensions.st_point(36.90,-1.40)::extensions.geography WHERE id=pa; failed := failed || 'position moved during an open T2 case';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE supply.properties SET location = extensions.st_point(36.80,-1.29)::extensions.geography, address_text='a2' WHERE id=pa; passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('an unchanged position blocked an ordinary edit: ' || SQLERRM); END;
+
+    -- review and decision on property A
+    UPDATE verification.cases SET status='in_review', claimed_by=rev1, claimed_at=now() WHERE id=ca;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (ca,2,chg3,va,sha2,-1.29,36.80,9,now(),-1.29,36.80,9,now()+interval '1 minute'); failed := failed || 'evidence added during review';
+    EXCEPTION WHEN raise_exception OR unique_violation THEN passed := passed + 1; END;
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pa,'t2_video',rev1,now(),now()+interval '6 months') RETURNING id INTO t2a;
+    BEGIN UPDATE verification.cases SET status='approved', decided_by=rev1, decided_at=now(), badge_id=t2a WHERE id=ca; failed := failed || 'T2 approval without a checklist accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='approved', decided_by=rev1, decided_at=now(), badge_id=t2a, t2_checklist=one_no WHERE id=ca; failed := failed || 'T2 approval with a "no" accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='approved', decided_by=rev1, decided_at=now(), badge_id=t1a, t2_checklist=all_yes WHERE id=ca; failed := failed || 'a T1 badge accepted for a T2 case';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET t2_checklist='[1,2]'::jsonb WHERE id=ca; failed := failed || 'a checklist that is not an object accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='rejected', decided_by=rev1, decided_at=now(), reason_code='t2_location_mismatch', note='x', tier='t1' WHERE id=ca; failed := failed || 'tier changed';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN UPDATE verification.cases SET status='approved', decided_by=rev1, decided_at=now(), badge_id=t2a, t2_checklist=all_yes WHERE id=ca; passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('valid T2 approval failed: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pa,'t2_video',rev1,now(),now()+interval '2 years'); failed := failed || 'a T2 badge over six months accepted';
+    EXCEPTION WHEN check_violation THEN passed := passed + 1; END;
+    -- video retention: kept for the retention period after the decision, deletable afterwards
+    BEGIN UPDATE supply.files SET status='deleted', deleted_at=now() WHERE id=va; failed := failed || 'video deleted inside the retention period';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    UPDATE verification.cases SET decided_at = now() - interval '91 days', submitted_at = now() - interval '95 days', due_at = now() - interval '90 days' WHERE id=ca;
+    BEGIN UPDATE supply.files SET status='deleted', deleted_at=now() WHERE id=va; passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('video not deletable after retention: ' || SQLERRM); END;
+    BEGIN UPDATE supply.properties SET location = extensions.st_point(36.90,-1.40)::extensions.geography WHERE id=pa; passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('position stayed locked after the case closed: ' || SQLERRM); END;
+
+    -- T2 reason codes only on T2 cases
+    INSERT INTO verification.cases(id,org_id,property_id,tier,submitted_by,due_at) VALUES (cf,org,pf,'t1',sub,now()+interval '2 days');
+    UPDATE verification.cases SET status='in_review', claimed_by=rev1, claimed_at=now() WHERE id=cf;
+    BEGIN UPDATE verification.cases SET status='rejected', decided_by=rev1, decided_at=now(), reason_code='t2_video_unusable' WHERE id=cf; failed := failed || 'T2 reason on a T1 case accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+
+    -- needs-changes round, T1 lapsing, rejection and appeal on property B
+    INSERT INTO verification.t2_challenges(id,org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (chb1,org,pb,sub,'5555',ARRAY[ub],now(),now()+interval '30 minutes');
+    INSERT INTO verification.cases(id,org_id,property_id,tier,submitted_by,due_at) VALUES (cb,org,pb,'t2',sub,now()+interval '3 days');
+    INSERT INTO supply.files(id,org_id,property_id,kind,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at) VALUES (vb1,org,pb,'video','s5/vb1','video/mp4',1000,'ready',sub,now());
+    INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cb,1,chb1,vb1,sha,-1.30,36.81,10,now(),-1.30,36.81,10,now()+interval '1 minute');
+    UPDATE verification.cases SET status='in_review', claimed_by=rev1, claimed_at=now() WHERE id=cb;
+    BEGIN INSERT INTO verification.t2_challenges(org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (org,pb,sub,'6666',ARRAY[ub],now(),now()+interval '30 minutes');
+      failed := failed || 'challenge accepted while the case is in review';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    UPDATE verification.cases SET status='needs_changes', paused_at=now(), reason_code='t2_video_unusable', claimed_by=NULL, claimed_at=NULL WHERE id=cb;
+    BEGIN INSERT INTO verification.t2_challenges(id,org_id,property_id,requested_by,code,unit_ids,consent_at,expires_at) VALUES (chb2,org,pb,sub,'6666',ARRAY[ub],now(),now()+interval '30 minutes'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('new challenge after needs-changes rejected: ' || SQLERRM); END;
+    INSERT INTO supply.files(id,org_id,property_id,kind,storage_path,mime_type,size_bytes,status,uploaded_by,ready_at) VALUES (vb2,org,pb,'video','s5/vb2','video/mp4',1000,'ready',sub,now());
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cb,2,chb2,vb2,sha2,-1.30,36.81,10,now(),-1.30,36.81,10,now()+interval '1 minute'); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('second attempt rejected: ' || SQLERRM); END;
+    BEGIN UPDATE supply.files SET status='deleted', deleted_at=now() WHERE id=vb1; failed := failed || 'earlier attempt video deleted while the case is open';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    UPDATE verification.cases SET status='in_review', claimed_by=rev1, claimed_at=now(), paused_at=NULL, reason_code=NULL WHERE id=cb;
+    UPDATE verification.badges SET revoked_at=now(), revoke_reason_code='other', revoke_note='lapsed for the test' WHERE id=t1b;
+    INSERT INTO verification.badges(subject_type,subject_id,level,verified_by,issued_at,expires_at) VALUES ('property',pb,'t2_video',rev1,now(),now()+interval '6 months') RETURNING id INTO wrong;
+    BEGIN UPDATE verification.cases SET status='approved', decided_by=rev1, decided_at=now(), badge_id=wrong, t2_checklist=all_yes WHERE id=cb; failed := failed || 'T2 approved after T1 was revoked';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    UPDATE verification.cases SET status='rejected', decided_by=rev1, decided_at=now(), reason_code='t2_location_mismatch', t2_checklist=one_no WHERE id=cb;
+    BEGIN INSERT INTO verification.cases(org_id,property_id,tier,submitted_by,due_at,appeal_of) VALUES (org,pb,'t1',sub,now()+interval '3 days',cb); failed := failed || 'a T1 appeal of a T2 rejection accepted';
+    EXCEPTION WHEN raise_exception THEN passed := passed + 1; END;
+    BEGIN INSERT INTO verification.cases(id,org_id,property_id,tier,submitted_by,due_at,appeal_of) VALUES (cb_appeal,org,pb,'t2',sub,now()+interval '3 days',cb); passed := passed + 1;
+    EXCEPTION WHEN OTHERS THEN failed := failed || ('T2 appeal rejected: ' || SQLERRM); END;
+    BEGIN INSERT INTO verification.t2_evidence(case_id,attempt,challenge_id,video_file_id,video_sha256,start_lat,start_lon,start_accuracy_m,start_at,end_lat,end_lon,end_accuracy_m,end_at)
+      VALUES (cb_appeal,1,chb2,vb2,sha2,-1.30,36.81,10,now(),-1.30,36.81,10,now()+interval '1 minute'); failed := failed || 'evidence attached to an appeal';
+    EXCEPTION WHEN raise_exception OR unique_violation THEN passed := passed + 1; END;
+  END;
+
   RAISE EXCEPTION 'RULES: % passed, % failed %', passed, cardinality(failed), failed;
 END $$;
