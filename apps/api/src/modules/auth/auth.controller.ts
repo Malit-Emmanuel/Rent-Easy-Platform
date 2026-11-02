@@ -10,7 +10,7 @@ export class AuthController {
   constructor(@Inject(AuthService) private auth: AuthService) {}
 
   @Public() @Post('auth/otp/request') @HttpCode(200)
-  request(@Body() b: any) { return this.auth.requestOtp(str(b?.phone, 'phone')); }
+  request(@Body() b: any) { return this.auth.requestOtp(str(b?.phone, 'phone'), optStr(b?.channel)); }
 
   @Public() @Post('auth/otp/verify') @HttpCode(200)
   verify(@Body() b: any) { return this.auth.verifyOtp(str(b?.phone, 'phone'), str(b?.code, 'code'), optStr(b?.deviceId)); }

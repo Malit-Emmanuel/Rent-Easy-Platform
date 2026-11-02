@@ -20,6 +20,7 @@ export class FakeSms implements SmsPort {
 export class FakePayments implements PaymentsPort {
   private seen = new Map<string, string>();
   async requestStkPush(r: StkPushRequest) {
+    if (isProductionEnv()) throw new Error('FakePayments must never run in production');
     const existing = this.seen.get(r.idempotencyKey);      // retries never double-charge
     if (existing) return { pspReference: existing };
     const ref = `FAKE-${randomUUID()}`; this.seen.set(r.idempotencyKey, ref);

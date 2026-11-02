@@ -15,7 +15,10 @@ Nothing here has been deployed yet. Items marked VERIFY must be checked on the f
 | `REDIS_URL` | Reference Railway's Redis variable, e.g. `${{Redis.REDIS_URL}}`. Prefer the private-network URL. VERIFY the exact variable name in the Railway dashboard |
 | `REDIS_IP_FAMILY` | Leave empty. Set to `6` (or `0`) only if the API logs show it cannot reach Redis on the private network. VERIFY |
 | `JWT_SECRET`, `OTP_PEPPER` | Long random values (32+ characters), different per environment |
-| `APP_ENV` | `staging` (production is blocked while vendors are fake) |
+| `APP_ENV` | `staging` for now. `production` is accepted only with a real message channel or a `DEV_OTP_ALLOWLIST` of test numbers |
+| `SMS_PROVIDER`, `AT_ENV`, `AT_USERNAME`, `AT_API_KEY`, `AT_SENDER_ID` | Africa's Talking. See `.env.example` and `docs/S4_5_Sign-in_Codes.md` |
+| `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_TEMPLATE` | WhatsApp sign-in codes. Optional |
+| `OTP_CHANNELS`, `OTP_DAILY_CAP`, `DEV_OTP_ALLOWLIST` | Channel order, daily spending cap, named test numbers |
 | `CORS_ORIGINS` | Leave empty. The dashboard calls the API from its own server routes, not from browsers |
 | `PORT` | Set by Railway; the API reads it |
 

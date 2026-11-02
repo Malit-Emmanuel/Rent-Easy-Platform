@@ -4,6 +4,16 @@ export const PAYMENTS_PORT = Symbol('PAYMENTS_PORT');
 
 export interface SmsPort { send(toE164: string, body: string): Promise<{ providerMessageId: string }> }
 
+/** One way of getting a sign-in code to a person. WhatsApp, SMS and the test-only "dev" channel all look the same to the auth code. */
+export const OTP_CHANNELS = Symbol('OTP_CHANNELS');
+export type OtpChannelId = 'whatsapp' | 'sms' | 'dev';
+export interface OtpChannel {
+  readonly name: OtpChannelId;
+  /** Throws when the provider does not accept the message. Errors must carry a short code, never the phone number or the code. */
+  send(toE164: string, code: string, ttlMinutes: number): Promise<{ providerMessageId: string }>;
+}
+export type OtpChannelSet = Partial<Record<OtpChannelId, OtpChannel>>;
+
 export interface StkPushRequest {
   idempotencyKey: string; phoneE164: string; amountMinor: bigint; currency: 'KES'; reference: string;
 }

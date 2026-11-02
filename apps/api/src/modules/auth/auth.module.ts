@@ -4,6 +4,7 @@ import { MembersController } from '../orgs/members.controller';
 import { OrgsController } from '../orgs/orgs.controller';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
+import { OTP_POLICY, OtpDeliveryService, OtpPolicy } from './otp-delivery.service';
 import { AUTH_CONFIG, AuthConfig, AuthService, defaultAuthTuning } from './auth.service';
 
 @Module({
@@ -13,7 +14,11 @@ import { AUTH_CONFIG, AuthConfig, AuthService, defaultAuthTuning } from './auth.
         const c = loadConfig();
         return { ...defaultAuthTuning, jwtSecret: c.jwtSecret, otpPepper: c.otpPepper, resendCooldownSec: c.otpResendCooldownSec };
     } },
-    AuthService, AuthGuard,
+    { provide: OTP_POLICY, useFactory: (): OtpPolicy => {
+        const c = loadConfig();
+        return { order: c.otpChannels, dailyCap: c.otpDailyCap, allowlist: c.devOtpAllowlist };
+    } },
+    OtpDeliveryService, AuthService, AuthGuard,
   ],
   exports: [AuthService, AuthGuard],
 })

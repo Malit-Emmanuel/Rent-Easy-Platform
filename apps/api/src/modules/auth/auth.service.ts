@@ -3,8 +3,8 @@ import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeE
 import * as jwt from 'jsonwebtoken';
 import { Pool, PoolClient } from 'pg';
 import { AuthUser, Role } from '../../common/rbac';
-import { SMS_PORT, SmsPort } from '../../providers/ports';
 import { AuditService, PG_POOL } from '../audit/audit.service';
+import { OtpDeliveryService } from './otp-delivery.service';
 import { normaliseKenyanPhone } from './phone';
 
 export const AUTH_CONFIG = 'AUTH_CONFIG';
@@ -22,7 +22,7 @@ const unauthorized = () => new UnauthorizedException('Invalid or expired credent
 export class AuthService {
   constructor(
     @Inject(PG_POOL) private pool: Pool,
-    @Inject(SMS_PORT) private sms: SmsPort,
+    @Inject(OtpDeliveryService) private delivery: OtpDeliveryService,
     @Inject(AuditService) private audit: AuditService,
     @Inject(AUTH_CONFIG) private cfg: AuthConfig,
   ) {}
@@ -31,10 +31,14 @@ export class AuthService {
     return createHmac('sha256', this.cfg.otpPepper).update(`${challengeId}:${code}`).digest();
   }
 
-  /** Always answers the same way whether or not the number has an account (no user enumeration). */
-  async requestOtp(rawPhone: string): Promise<{ expiresInSec: number }> {
+  /**
+   * Always answers the same way whether or not the number has an account (no user enumeration).
+   * `preferred` lets the person ask for SMS when WhatsApp did not arrive; it only changes the order channels are tried in.
+   */
+  async requestOtp(rawPhone: string, preferred?: string): Promise<{ expiresInSec: number; channel: 'whatsapp' | 'sms'; resendAfterSec: number }> {
     const phone = normaliseKenyanPhone(rawPhone ?? '');
     if (!phone) throw new BadRequestException('Enter a valid Kenyan mobile number');
+    if (preferred !== undefined && preferred !== 'sms' && preferred !== 'whatsapp') throw new BadRequestException('channel must be sms or whatsapp');
     const recent = await this.pool.query(
       `SELECT count(*)::int AS n, max(created_at) AS last FROM identity.otp_challenges
         WHERE phone=$1 AND created_at > now() - interval '10 minutes'`, [phone]);
@@ -46,9 +50,17 @@ export class AuthService {
     await this.pool.query(
       `INSERT INTO identity.otp_challenges (id, phone, code_hmac, expires_at)
        VALUES ($1,$2,$3, now() + make_interval(secs => $4))`, [id, phone, this.hmac(id, code), this.cfg.otpTtlSec]);
-    await this.sms.send(phone, `Your verification code is ${code}. It expires in ${Math.round(this.cfg.otpTtlSec / 60)} minutes.`);
-    await this.audit.record({ action: 'auth.otp_requested', subjectType: 'otp_challenge', subjectId: id });  // no phone in audit
-    return { expiresInSec: this.cfg.otpTtlSec };
+    let sent;
+    try { sent = await this.delivery.deliver(id, phone, code, Math.round(this.cfg.otpTtlSec / 60), preferred); }
+    catch (e) {
+      // Nothing was sent, so the code must not stay usable.
+      await this.pool.query('UPDATE identity.otp_challenges SET consumed_at = now() WHERE id=$1', [id]);
+      throw e;
+    }
+    await this.audit.record({ action: 'auth.otp_requested', subjectType: 'otp_challenge', subjectId: id,   // no phone in audit
+      metadata: { channel: sent.channel, fellBack: sent.fellBack } });
+    // The test-only log channel is reported as SMS so the response does not reveal which numbers are on the allow-list.
+    return { expiresInSec: this.cfg.otpTtlSec, channel: sent.channel === 'whatsapp' ? 'whatsapp' : 'sms', resendAfterSec: this.cfg.resendCooldownSec };
   }
 
   async verifyOtp(rawPhone: string, code: string, deviceId?: string): Promise<TokenPair> {
