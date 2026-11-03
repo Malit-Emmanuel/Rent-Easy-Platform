@@ -78,7 +78,7 @@ t('T2 challenge and submission over HTTP: switch, challenge, takes, readings, hi
       assert.equal(r.status, 201); ch = r.body;
       assert.match(ch.code, /^\d{4}$/); assert.equal(ch.unitsToShow.length, 1); assert.ok(['A1', 'A2'].includes(ch.unitsToShow[0].label));
       const mins = (new Date(ch.expiresAt).getTime() - new Date(ch.issuedAt).getTime()) / 60000; assert.ok(mins > 29.9 && mins <= 30.01);
-      assert.equal(ch.takesLeft, 3);
+      assert.equal(ch.takesLeft, 3); assert.ok(Math.abs(new Date(ch.now).getTime() - Date.now()) < 5000, 'the server time is sent so a phone with a wrong clock can correct for it');
       const ev = (await h.pool.query(`SELECT metadata FROM governance.audit_events WHERE action='verification.t2_challenge_issued' AND subject_id=$1`, [ch.id])).rows;
       assert.equal(ev.length, 1); assert.deepEqual(Object.keys(ev[0].metadata).sort(), ['orgId', 'propertyId', 'units'], 'the code is not written to the audit trail');
       const row = (await h.pool.query('SELECT consent_at FROM verification.t2_challenges WHERE id=$1', [ch.id])).rows[0]; assert.ok(row.consent_at);

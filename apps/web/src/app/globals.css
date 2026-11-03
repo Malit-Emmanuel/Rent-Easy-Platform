@@ -104,3 +104,7 @@ button.danger { background:var(--err); color:#fff; } .msg { color:var(--muted); 
 .tabs a.on { color:var(--fg); border-bottom-color:var(--brand); }
 .tabs a:hover { color:var(--fg); }
 .stats.three { grid-template-columns:repeat(3,1fr); } .stats.three .stat { padding:12px 14px; } @media (max-width:520px) { .stats.three { gap:8px; } .stats.three .stat b { font-size:1.4rem; } .stats.three .stat span { font-size:.78rem; } }
+.t2code { font:700 3rem/1.1 var(--mono, ui-monospace, monospace); letter-spacing:.2em; text-align:center; margin:.4rem 0; padding:.5rem; border-radius:12px; background:var(--raised); }
+.t2video { width:100%; max-height:60vh; border-radius:12px; background:#000; margin:.5rem 0; }
+.t2challenge { margin:.5rem 0; }
+button.secondary { background:transparent; color:var(--fg); border:1px solid var(--border, currentColor); }

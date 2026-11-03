@@ -6,6 +6,7 @@ import FilePanel from '@/components/FilePanel';
 import { useI18n } from '@/components/I18n';
 import PageHead from '@/components/PageHead';
 import VerificationCard from '@/components/VerificationCard';
+import T2Card from '@/components/T2Card';
 import { api } from '@/lib/client';
 import { readPosition } from '@/lib/position';
 
@@ -69,6 +70,7 @@ export default function PropertyPage() {
     <>
       <PageHead back={{ href: `/orgs/${orgId}/properties`, label: t('properties') }} eyebrow={p.nodeName ?? undefined} title={p.name}><span className="badge">{units.length} {units.length === 1 ? t('unitOne') : t('unitCount')}</span></PageHead>
       <VerificationCard orgId={orgId} propertyId={propertyId} canWrite={canWrite} />
+      <T2Card orgId={orgId} propertyId={propertyId} canWrite={canWrite} />
 
       {canWrite ? (
         <form onSubmit={save} className="panel">

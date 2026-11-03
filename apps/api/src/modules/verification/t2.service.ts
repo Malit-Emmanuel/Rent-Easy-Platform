@@ -75,6 +75,7 @@ export class T2Service {
       challenge = { id: c.id, mine, issuedAt: c.issued_at, expiresAt: c.expires_at, takesUsed: c.takes, takesLeft: MAX_TAKES - c.takes, ...(mine ? { code: c.code, unitsToShow: units } : {}) };
     }
     return {
+      now: new Date().toISOString(),   // lets the phone correct for a wrong clock when it stamps its location readings
       enabled: t2Enabled(), eligible: blockers.length === 0 && !challenge, blockers,
       badge: t2.rows[0] && t1.rows[0] ? { validUntil: t2.rows[0].expires_at } : null,
       challenge,
@@ -120,7 +121,7 @@ export class T2Service {
       await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,'verification.t2_challenge_issued','t2_challenge',$2,$3)`,
         [userId, row.id, JSON.stringify({ orgId, propertyId, units: chosen.length })]);
       await c.query('COMMIT');
-      return { id: row.id, code, unitsToShow: labels, issuedAt: row.issued_at, expiresAt: row.expires_at, takesUsed: 0, takesLeft: MAX_TAKES };
+      return { now: new Date().toISOString(), id: row.id, code, unitsToShow: labels, issuedAt: row.issued_at, expiresAt: row.expires_at, takesUsed: 0, takesLeft: MAX_TAKES };
     } catch (e: any) {
       await c.query('ROLLBACK').catch(() => {});
       if (e?.code === 'P0001') throw new ConflictException({ code: 'challenge_refused', message: 'A challenge cannot be issued for this property right now.' });
