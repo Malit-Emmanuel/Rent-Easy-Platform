@@ -158,7 +158,7 @@ t('T2 challenge and submission over HTTP: switch, challenge, takes, readings, hi
       assert.equal(ev.length, 1); assert.ok(!/lat|lon/i.test(JSON.stringify(ev[0].metadata)), 'no coordinates in the audit trail');
     });
 
-    await ctx.test('after submission: the challenge cannot be reused, the pin is frozen, T1 requests are blocked, reviewers cannot see the case yet', async () => {
+    await ctx.test('after submission: the challenge cannot be reused, the pin is frozen, T1 requests are blocked, the case waits in the queue, unclaimed', async () => {
       const again = await h.call('POST', `${T}/submit`, { challengeId: ch.id, fileId: takeA.tk.body.fileId, ...readings() }, admin.accessToken);
       assert.equal(again.status, 409);
       await assert.rejects(() => h.pool.query(`UPDATE supply.properties SET location = extensions.st_point(36.9, -1.3)::extensions.geography WHERE id=$1`, [prop.id]), /position cannot change while a T2 case is open/);
@@ -167,8 +167,9 @@ t('T2 challenge and submission over HTTP: switch, challenge, takes, readings, hi
       assert.equal((await h.call('POST', `/orgs/${org.id}/properties/${prop.id}/verification/resubmit`, undefined, admin.accessToken)).status, 409);
       const s = await status(); assert.equal(s.case.status, 'submitted'); assert.equal(s.case.attempts, 1); assert.equal(s.challenge, null); assert.ok(s.blockers.includes('case_open'));
       const q = await h.call('GET', '/review/cases/queue', undefined, reviewer.accessToken);
-      assert.equal(q.status, 200); assert.ok(Array.isArray(q.body)); assert.ok(!q.body.some((c: any) => c.id === firstCase), 'T2 cases stay out of the reviewer queue until the evidence panel exists (S5d)');
-      assert.equal((await h.call('POST', `/review/cases/${firstCase}/claim`, undefined, reviewer.accessToken)).status, 404);
+      assert.equal(q.status, 200); const inQueue = q.body.find((c: any) => c.id === firstCase);
+      assert.ok(inQueue && inQueue.tier === 't2' && inQueue.riskFlags.includes('t2'), 'the case reaches the reviewer queue marked T2');
+      assert.equal((await h.call('GET', `/review/cases/${firstCase}`, undefined, reviewer.accessToken)).status, 404, 'but nothing is visible until it is claimed');
     });
 
     await ctx.test('needs changes means a new challenge and a new recording; the same case goes back with a fresh attempt and the hints see a reused video', async () => {

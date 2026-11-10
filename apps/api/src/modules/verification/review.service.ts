@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
 import { STORAGE_PORT, StoragePort } from '../supply/files/storage.port';
 import { badgeExpiry, checkDecision, checkRevoke } from './cases.rules';
+import { T2_CHECKLIST, T2_VIDEO_LINK_SEC, checkT2Decision, t2BadgeExpiry } from './t2.rules';
 
 const LINK_TTL_SEC = 300;   // a document link works for 5 minutes
 
@@ -25,7 +26,7 @@ export class ReviewService {
   private shape(r: any, me: string, now = Date.now()) {
     const due = r.due_at ? new Date(r.due_at).getTime() : null;
     return {
-      id: r.id, status: r.status, propertyName: r.property_name, address: r.address_text, orgName: r.org_name,
+      id: r.id, tier: r.tier, status: r.status, propertyName: r.property_name, address: r.address_text, orgName: r.org_name,
       submittedAt: r.submitted_at, dueAt: r.due_at, minutesLeft: due === null ? null : Math.round((due - now) / 60_000),
       breached: due !== null && due < now, riskFlags: r.risk_flags, isAppeal: r.is_appeal, fileCount: r.file_count,
       claimedByMe: r.claimed_by === me, claimed: !!r.claimed_by,   // never the identity of another reviewer
@@ -36,7 +37,7 @@ export class ReviewService {
   async queue(reviewerId: string) {
     const rows = (await this.pool.query(
       `${ReviewService.SELECT}
-        WHERE c.tier = 't1' AND ((c.status = 'submitted') OR (c.status = 'in_review' AND c.claimed_by = $1))
+        WHERE c.tier IN ('t1','t2') AND ((c.status = 'submitted') OR (c.status = 'in_review' AND c.claimed_by = $1))
           AND NOT EXISTS (SELECT 1 FROM identity.memberships m WHERE m.user_id = $1 AND m.org_id = c.org_id)
           AND NOT (c.appeal_of IS NOT NULL AND EXISTS (SELECT 1 FROM verification.cases o WHERE o.id = c.appeal_of AND o.decided_by = $1))
         ORDER BY (c.claimed_by = $1) DESC NULLS LAST, c.due_at ASC, cardinality(c.risk_flags) DESC, c.submitted_at ASC LIMIT 200`, [reviewerId])).rows;
@@ -50,7 +51,7 @@ export class ReviewService {
       await c.query('BEGIN');
       const row = (await c.query(`${ReviewService.SELECT} WHERE c.id = $1 FOR UPDATE OF c`, [caseId])).rows[0];
       // Same answer for "does not exist" and "you may not see it", so a reviewer cannot probe other organisations.
-      const hidden = !row || row.tier !== 't1' || (await c.query(`SELECT 1 FROM identity.memberships WHERE user_id=$1 AND org_id=(SELECT org_id FROM verification.cases WHERE id=$2)`, [reviewerId, caseId])).rowCount! > 0
+      const hidden = !row || !['t1', 't2'].includes(row.tier) || (await c.query(`SELECT 1 FROM identity.memberships WHERE user_id=$1 AND org_id=(SELECT org_id FROM verification.cases WHERE id=$2)`, [reviewerId, caseId])).rowCount! > 0
         || (row.is_appeal && (await c.query(`SELECT 1 FROM verification.cases o JOIN verification.cases a ON a.appeal_of = o.id WHERE a.id=$1 AND o.decided_by=$2`, [caseId, reviewerId])).rowCount! > 0);
       if (hidden) throw new NotFoundException('Case not found');
       if (row.status === 'in_review' && row.claimed_by === reviewerId) { await c.query('COMMIT'); return this.shape(row, reviewerId); }   // claiming twice is harmless
@@ -82,11 +83,74 @@ export class ReviewService {
     const earlier = row.is_appeal ? (await this.pool.query(`SELECT o.reason_code AS "reasonCode", o.note FROM verification.cases o JOIN verification.cases a ON a.appeal_of = o.id WHERE a.id=$1`, [caseId])).rows[0] ?? null : null;
     const outcome = (await this.pool.query(`SELECT status, reason_code AS "reasonCode", note, decided_at AS "decidedAt" FROM verification.cases WHERE id=$1`, [caseId])).rows[0];
     await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, resource, reason) VALUES ($1,'verification_case',$2)`, [reviewerId, `case ${caseId}`]);
+    const docsOpened = files.length > 0 && files.every((f: any) => opened.has(f.id));
+    const t2 = row.tier === 't2' ? await this.t2Evidence(caseId, row.is_appeal, reviewerId) : null;
     return {
       ...this.shape(row, reviewerId), files: files.map((f: any) => ({ ...f, opened: opened.has(f.id) })),
-      allOpened: files.length > 0 && files.every((f: any) => opened.has(f.id)),
+      // For a T2 case "everything opened" means the documents and the video (the latest recording).
+      allOpened: t2 ? files.every((f: any) => opened.has(f.id)) && t2.videoOpened : docsOpened,
       earlierDecision: earlier, decided: ['approved', 'rejected'].includes(outcome.status) ? outcome : null,
+      ...(t2 ? { t2 } : {}),
     };
+  }
+
+  /** The id of the case that holds the evidence: an appeal reads the original case's recording. */
+  private async evidenceCaseId(caseId: string): Promise<string> {
+    return (await this.pool.query(`SELECT COALESCE(appeal_of, id) AS id FROM verification.cases WHERE id=$1`, [caseId])).rows[0].id;
+  }
+
+  /**
+   * What the reviewer sees for a T2 case: the challenge, the window, the two readings against the property position, the hints
+   * (advice only) and the latest recording. Earlier recordings of a "needs changes" round are listed but never opened.
+   */
+  private async t2Evidence(caseId: string, isAppeal: boolean, reviewerId: string) {
+    const evCase = await this.evidenceCaseId(caseId);
+    const all = (await this.pool.query(
+      `SELECT e.attempt, e.challenge_id, e.video_file_id, e.submitted_at, e.start_lat, e.start_lon, e.start_accuracy_m, e.start_at, e.end_lat, e.end_lon, e.end_accuracy_m, e.end_at, e.hints,
+              f.size_bytes::int AS size_bytes, f.mime_type, f.status AS file_status
+         FROM verification.t2_evidence e JOIN supply.files f ON f.id = e.video_file_id WHERE e.case_id=$1 ORDER BY e.attempt`, [evCase])).rows;
+    const latest = all[all.length - 1];
+    if (!latest) return null;
+    const ch = (await this.pool.query(`SELECT code, unit_ids, issued_at, expires_at FROM verification.t2_challenges WHERE id=$1`, [latest.challenge_id])).rows[0];
+    const units = (await this.pool.query(`SELECT label FROM supply.units WHERE id = ANY($1::uuid[]) ORDER BY label`, [ch.unit_ids])).rows.map((u: any) => u.label);
+    const pin = (await this.pool.query(
+      `SELECT extensions.st_y(p.location::extensions.geometry) AS lat, extensions.st_x(p.location::extensions.geometry) AS lon FROM verification.cases c JOIN supply.properties p ON p.id = c.property_id WHERE c.id=$1`, [caseId])).rows[0];
+    const seen = (await this.pool.query(`SELECT 1 FROM governance.data_access_log WHERE accessor_id=$1 AND resource='file:video' AND reason=$2 LIMIT 1`, [reviewerId, `case ${caseId} file ${latest.video_file_id}`])).rowCount! > 0;
+    await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, resource, reason) VALUES ($1,'t2_evidence',$2)`, [reviewerId, `case ${caseId}`]);
+    const h = latest.hints ?? {};
+    const reading = (lat: any, lon: any, acc: any, at: any, d: any, band: any) => ({ lat: Number(lat), lon: Number(lon), accuracyM: Number(acc), at, distanceM: d ?? null, band: band ?? null });
+    return {
+      attempt: latest.attempt, attempts: all.map((a: any) => ({ attempt: a.attempt, submittedAt: a.submitted_at, flags: a.hints?.flags ?? [] })),
+      isAppealOfRecording: isAppeal,
+      challenge: { code: ch.code, units, issuedAt: ch.issued_at, expiresAt: ch.expires_at },
+      window: { startedInside: new Date(latest.start_at) >= new Date(ch.issued_at) && new Date(latest.start_at) <= new Date(ch.expires_at), endedInside: h.endedBeforeExpiry ?? null, submittedAfterExpirySec: h.submittedAfterExpirySec ?? 0 },
+      pin: pin?.lat == null ? null : { lat: Number(pin.lat), lon: Number(pin.lon) },
+      start: reading(latest.start_lat, latest.start_lon, latest.start_accuracy_m, latest.start_at, h.startDistanceM, h.startBand),
+      end: reading(latest.end_lat, latest.end_lon, latest.end_accuracy_m, latest.end_at, h.endDistanceM, h.endBand),
+      readingsApartM: h.readingsApartM ?? null,
+      hints: { flags: h.flags ?? [] },   // advice only: nothing here decides the case
+      video: { sizeBytes: latest.size_bytes, mimeType: latest.mime_type, available: latest.file_status === 'ready' },
+      videoOpened: seen,
+      checklist: T2_CHECKLIST,
+    };
+  }
+
+  /** A link that plays the latest recording of a T2 case for 5 minutes. Only the holder, always logged; watching it is required before an approval. */
+  async openVideo(caseId: string, reviewerId: string) {
+    if (!this.storage) throw new ServiceUnavailableException('File storage is not configured');
+    const own = (await this.pool.query(`SELECT 1 FROM verification.cases WHERE id=$1 AND tier='t2' AND status='in_review' AND claimed_by=$2`, [caseId, reviewerId])).rowCount;
+    if (!own) throw new NotFoundException('Video not found');
+    const evCase = await this.evidenceCaseId(caseId);
+    const v = (await this.pool.query(
+      `SELECT f.id, f.storage_path, f.uploaded_by, f.mime_type FROM verification.t2_evidence e JOIN supply.files f ON f.id = e.video_file_id
+        WHERE e.case_id=$1 AND f.status='ready' ORDER BY e.attempt DESC LIMIT 1`, [evCase])).rows[0];
+    if (!v) throw new NotFoundException('Video not found');
+    let url: string;
+    try { url = await this.storage.createSignedDownload(v.storage_path, T2_VIDEO_LINK_SEC, v.mime_type?.includes('mp4') ? 'walkthrough.mp4' : 'walkthrough.webm'); }
+    catch { throw new BadGatewayException('File storage is unavailable. Please try again.'); }
+    await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, subject_user_id, resource, reason) VALUES ($1,$2,'file:video',$3)`, [reviewerId, v.uploaded_by ?? null, `case ${caseId} file ${v.id}`]);
+    await this.audit.record({ actorId: reviewerId, action: 'verification.video_opened', subjectType: 'verification_case', subjectId: caseId, metadata: { fileId: v.id } });
+    return { url, expiresInSec: T2_VIDEO_LINK_SEC };
   }
 
   /** A link that opens one attached document for 5 minutes. Only the holder of the case, only documents attached to it, always logged. */
@@ -104,27 +168,38 @@ export class ReviewService {
     return { url, expiresInSec: LINK_TTL_SEC };
   }
 
-  /** The human decision. Approve issues a 12-month T1 badge; the other two need a reason code. */
-  async decide(caseId: string, reviewerId: string, body: { decision?: unknown; reasonCode?: unknown; note?: unknown }) {
-    const bad = checkDecision(body); if (bad) throw new BadRequestException(bad);
+  /** The human decision. Approve issues a T1 badge (12 months) or a T2 badge (6 months); the other two need a reason code. A T2 decision also records the six checklist answers. */
+  async decide(caseId: string, reviewerId: string, body: { decision?: unknown; reasonCode?: unknown; note?: unknown; checklist?: unknown }) {
+    // The tier decides which rules apply to the request. A case that does not exist is treated as T1 here and answers 404 below.
+    const tier: string = (await this.pool.query(`SELECT tier FROM verification.cases WHERE id=$1`, [caseId])).rows[0]?.tier ?? 't1';
+    const isT2 = tier === 't2';
+    let checklist: Record<string, boolean> | null = null;
+    if (isT2) { const v = checkT2Decision(body); if (v.error) throw new BadRequestException(v.error); checklist = v.checklist; }
+    else { const bad = checkDecision(body); if (bad) throw new BadRequestException(bad); }
     const decision = body.decision as 'approve' | 'needs_changes' | 'reject';
     const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
     const reason = decision === 'approve' ? null : (body.reasonCode as string);
     const c = await this.pool.connect();
     try {
       await c.query('BEGIN');
-      const row = (await c.query(`SELECT id, org_id, property_id, status, claimed_by, due_at, submitted_at, (SELECT count(*)::int FROM verification.case_files WHERE case_id=$1) AS files FROM verification.cases WHERE id=$1 FOR UPDATE`, [caseId])).rows[0];
+      const row = (await c.query(`SELECT id, org_id, property_id, tier, appeal_of, status, claimed_by, due_at, submitted_at, (SELECT count(*)::int FROM verification.case_files WHERE case_id=$1) AS files FROM verification.cases WHERE id=$1 FOR UPDATE`, [caseId])).rows[0];
       if (!row || row.claimed_by !== reviewerId) throw new NotFoundException('Case not found');
       if (row.status !== 'in_review') throw new ConflictException({ code: 'case_not_open', message: 'This case has already been decided.' });
       if (decision === 'approve') {
         const seen = (await c.query(`SELECT count(DISTINCT split_part(reason, ' file ', 2))::int n FROM governance.data_access_log WHERE accessor_id=$1 AND resource='file:document' AND reason LIKE $2`, [reviewerId, `case ${caseId} file %`])).rows[0].n;
-        if (!row.files || seen < row.files) throw new UnprocessableEntityException({ code: 'documents_not_opened', message: 'Open every attached document before approving.' });
+        if (isT2) {
+          const v = (await c.query(`SELECT video_file_id FROM verification.t2_evidence WHERE case_id=$1 ORDER BY attempt DESC LIMIT 1`, [row.appeal_of ?? row.id])).rows[0];
+          if (!v) throw new UnprocessableEntityException({ code: 'no_evidence', message: 'This case has no recording to approve.' });
+          const watched = (await c.query(`SELECT 1 FROM governance.data_access_log WHERE accessor_id=$1 AND resource='file:video' AND reason=$2 LIMIT 1`, [reviewerId, `case ${caseId} file ${v.video_file_id}`])).rowCount;
+          if (!watched) throw new UnprocessableEntityException({ code: 'video_not_opened', message: 'Watch the video before approving.' });
+          if (seen < row.files) throw new UnprocessableEntityException({ code: 'documents_not_opened', message: 'Open every attached document before approving.' });
+        } else if (!row.files || seen < row.files) throw new UnprocessableEntityException({ code: 'documents_not_opened', message: 'Open every attached document before approving.' });
       }
       let badgeId: string | null = null;
       if (decision === 'approve') {
         const now = new Date();
-        badgeId = (await c.query(`INSERT INTO verification.badges (subject_type, subject_id, level, verified_by, evidence_ref, issued_at, expires_at) VALUES ('property',$1,'t1_documented',$2,$3,$4,$5) RETURNING id`,
-          [row.property_id, reviewerId, `case:${caseId}`, now, badgeExpiry(now)])).rows[0].id;
+        badgeId = (await c.query(`INSERT INTO verification.badges (subject_type, subject_id, level, verified_by, evidence_ref, issued_at, expires_at) VALUES ('property',$1,$6,$2,$3,$4,$5) RETURNING id`,
+          [row.property_id, reviewerId, `case:${caseId}`, now, isT2 ? t2BadgeExpiry(now) : badgeExpiry(now), isT2 ? 't2_video' : 't1_documented'])).rows[0].id;
       }
       const status = decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'needs_changes';
       const final = decision !== 'needs_changes';
@@ -133,14 +208,18 @@ export class ReviewService {
           `UPDATE verification.cases SET status=$2, reason_code=$3, note=$4, badge_id=$5,
                   decided_by = CASE WHEN $6 THEN $7::uuid END, decided_at = CASE WHEN $6 THEN now() END,
                   paused_at = CASE WHEN $2='needs_changes' THEN now() END,
-                  claimed_by = CASE WHEN $2='needs_changes' THEN NULL ELSE claimed_by END, claimed_at = CASE WHEN $2='needs_changes' THEN NULL ELSE claimed_at END
-            WHERE id=$1`, [caseId, status, reason, note, badgeId, final, reviewerId]);
+                  claimed_by = CASE WHEN $2='needs_changes' THEN NULL ELSE claimed_by END, claimed_at = CASE WHEN $2='needs_changes' THEN NULL ELSE claimed_at END,
+                  t2_checklist = $8::jsonb
+            WHERE id=$1`, [caseId, status, reason, note, badgeId, final, reviewerId, checklist ? JSON.stringify(checklist) : null]);
       } catch (e: any) {   // the database rules are the last line of defence: they refuse self-review and a repeat reviewer on an appeal
-        if (/reviewer|decider|different reviewer/.test(String(e?.message))) throw new NotFoundException('Case not found');
+        const msg = String(e?.message);
+        if (/reviewer|decider|different reviewer/.test(msg)) throw new NotFoundException('Case not found');
+        if (/T2 needs a valid T1/.test(msg)) throw new ConflictException({ code: 't1_not_valid', message: 'The documented (T1) badge is no longer valid, so a video badge cannot be given. Choose Needs changes or Reject.' });
+        if (/checklist item|T2 approval needs submitted evidence/.test(msg)) throw new UnprocessableEntityException({ code: 'checklist_incomplete', message: 'Every checklist item must be yes before approving.' });
         throw e;
       }
       await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,$2,'verification_case',$3,$4)`,
-        [reviewerId, `verification.${status}`, caseId, JSON.stringify({ propertyId: row.property_id, orgId: row.org_id, reasonCode: reason, badgeId, flagged: reason === 'suspected_forgery' })]);
+        [reviewerId, `verification.${status}`, caseId, JSON.stringify({ propertyId: row.property_id, orgId: row.org_id, reasonCode: reason, badgeId, flagged: reason === 'suspected_forgery' || reason === 't2_suspected_replay', ...(isT2 ? { tier: 't2', checklist } : {}) })]);
       await c.query('COMMIT');
       return { id: caseId, status, reasonCode: reason, badgeId };
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
@@ -183,19 +262,19 @@ export class ReviewService {
     const rows = (await this.pool.query(
       `SELECT * FROM (
          SELECT a.occurred_at AS at, replace(a.action, 'verification.', '') AS kind, a.metadata->>'reasonCode' AS reason_code, c.id AS ref_id,
-                c.appeal_of IS NOT NULL AS is_appeal, p.name AS property_name, o.name AS org_name
+                c.appeal_of IS NOT NULL AS is_appeal, p.name AS property_name, o.name AS org_name, c.tier
            FROM governance.audit_events a
            JOIN verification.cases c ON c.id::text = a.subject_id
            JOIN supply.properties p ON p.id = c.property_id JOIN identity.organizations o ON o.id = c.org_id
           WHERE a.actor_id = $1 AND a.subject_type = 'verification_case' AND a.action IN ('verification.approved','verification.rejected','verification.needs_changes')
          UNION ALL
-         SELECT a.occurred_at, 'badge_revoked', a.metadata->>'reasonCode', b.id, false, p.name, o.name
+         SELECT a.occurred_at, 'badge_revoked', a.metadata->>'reasonCode', b.id, false, p.name, o.name, 't1'
            FROM governance.audit_events a
            JOIN verification.badges b ON b.id::text = a.subject_id
            JOIN supply.properties p ON p.id = b.subject_id JOIN identity.organizations o ON o.id = p.org_id
           WHERE a.actor_id = $1 AND a.subject_type = 'badge' AND a.action = 'verification.badge_revoked'
        ) h ORDER BY at DESC LIMIT 200`, [reviewerId])).rows;
     await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, resource, reason) VALUES ($1,'verification_history',$2)`, [reviewerId, `listed ${rows.length}`]);
-    return rows.map((r: any) => ({ at: r.at, kind: r.kind, reasonCode: r.reason_code, id: r.ref_id, isAppeal: r.is_appeal, propertyName: r.property_name, orgName: r.org_name }));
+    return rows.map((r: any) => ({ at: r.at, kind: r.kind, reasonCode: r.reason_code, id: r.ref_id, isAppeal: r.is_appeal, propertyName: r.property_name, orgName: r.org_name, tier: r.tier }));
   }
 }

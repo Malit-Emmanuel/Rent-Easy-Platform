@@ -22,7 +22,7 @@ export default function HistoryPage() {
           <tbody>{rows.map((r, i) => (
             <tr key={r.id + r.kind + i}>
               <td>{new Date(r.at).toLocaleString()}</td>
-              <td><strong>{r.propertyName}</strong>{r.isAppeal && <> <span className="badge">{t('rvAppeal')}</span></>}</td>
+              <td><strong>{r.propertyName}</strong>{r.tier === 't2' && <> <span className="badge">{t('flag_t2')}</span></>}{r.isAppeal && <> <span className="badge">{t('rvAppeal')}</span></>}</td>
               <td>{r.orgName}</td>
               <td><span className={`vstate ${r.kind === 'approved' ? 'ok' : r.kind === 'needs_changes' ? 'wait' : 'bad'}`}>{word('rvk_' + r.kind)}</span>{r.reasonCode && <div className="msg">{word('rc_' + r.reasonCode)}</div>}</td>
             </tr>))}</tbody>

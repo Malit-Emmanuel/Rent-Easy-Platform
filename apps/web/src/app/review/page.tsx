@@ -7,7 +7,7 @@ import ReviewTabs from '@/components/ReviewTabs';
 import { api } from '@/lib/client';
 import { span } from '@/lib/span';
 
-interface Row { id: string; status: string; propertyName: string; address: string; orgName: string; submittedAt: string; minutesLeft: number | null; breached: boolean; riskFlags: string[]; isAppeal: boolean; fileCount: number; claimedByMe: boolean }
+interface Row { id: string; status: string; propertyName: string; address: string; orgName: string; submittedAt: string; minutesLeft: number | null; breached: boolean; riskFlags: string[]; tier: string; isAppeal: boolean; fileCount: number; claimedByMe: boolean }
 
 export default function ReviewQueue() {
   const { t } = useI18n(); const word = (k: string) => (t as any)(k) as string;
@@ -47,10 +47,10 @@ export default function ReviewQueue() {
           <tbody>
             {rows.map((c) => (
               <tr key={c.id}>
-                <td><strong>{c.propertyName}</strong><div className="msg">{c.address} · {c.fileCount} {t('rvDocs')}</div></td>
+                <td><strong>{c.propertyName}</strong>{c.tier === 't2' && <> <span className="badge">{t('flag_t2')}</span></>}<div className="msg">{c.address} · {c.fileCount} {t('rvDocs')}</div></td>
                 <td>{c.orgName}</td>
                 <td>{c.minutesLeft === null ? '–' : <span className={`vstate ${c.breached ? 'bad' : c.minutesLeft < 24 * 60 ? 'wait' : 'none'}`}>{c.breached ? `${t('rvOverdue')} ${span(c.minutesLeft)}` : `${span(c.minutesLeft)} ${t('rvLeft')}`}</span>}</td>
-                <td>{c.isAppeal && <span className="badge">{t('rvAppeal')}</span>}{' '}{c.riskFlags.filter((f) => f !== 'appeal').map((f) => <span className="badge" key={f}>{word('flag_' + f)}</span>)}</td>
+                <td>{c.isAppeal && <span className="badge">{t('rvAppeal')}</span>}{' '}{c.riskFlags.filter((f) => f !== 'appeal' && f !== 't2').map((f) => <span className="badge" key={f}>{word('flag_' + f)}</span>)}</td>
                 <td className="actions">
                   {c.claimedByMe ? (<><Link href={`/review/${c.id}`}><button type="button">{t('rvOpenCase')}</button></Link><span className="vstate ok">{t('rvMine')}</span><button type="button" className="link" disabled={busy === c.id} onClick={() => act(c.id, 'release')}>{t('rvRelease')}</button></>)
                     : <button type="button" disabled={busy === c.id} onClick={() => act(c.id, 'claim')}>{t('rvClaim')}</button>}

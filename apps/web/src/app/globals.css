@@ -110,3 +110,13 @@ button.danger { background:var(--err); color:#fff; } .msg { color:var(--muted); 
 button.secondary { background:transparent; color:var(--fg); border:1px solid var(--border, currentColor); }
 /* The phone top bar (language and sign out) must come after its base rule, otherwise the base rule hides it on phones. */
 @media (max-width:820px) { .topbar { display:flex; flex-wrap:nowrap; gap:8px; } .topbar .lang { font-size:0; } .topbar .lang select { font-size:.85rem; } .topbar .link { white-space:nowrap; } }
+
+/* S5d: reviewer checklist for a T2 case */
+.t2check { border:1px solid var(--line); border-radius:var(--radius); padding:10px 14px; margin:14px 0 0; }
+.t2check legend h3 { margin:0; font-size:1rem; }
+.t2q { display:grid; grid-template-columns:1fr auto auto; gap:6px 14px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+.t2q:first-of-type { border-top:0; }
+.t2q label { display:flex; gap:6px; align-items:center; white-space:nowrap; }
+.t2q input[type=radio] { width:auto; }
+.mono { font-family:var(--mono, ui-monospace, monospace); letter-spacing:.15em; }
+@media (max-width:560px) { .t2q { grid-template-columns:1fr 1fr; } .t2q > span { grid-column:1 / -1; } }

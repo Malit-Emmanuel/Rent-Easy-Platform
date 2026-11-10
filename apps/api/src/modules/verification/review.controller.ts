@@ -26,6 +26,9 @@ export class ReviewController {
   @Post(':id/files/:fileId/link') @HttpCode(200) @Roles('reviewer')
   link(@Req() req: any, @Param('id', uuid()) id: string, @Param('fileId', uuid()) fileId: string) { return this.svc.openFile(id, fileId, req.user.id); }
 
+  @Post(':id/video/link') @HttpCode(200) @Roles('reviewer')
+  videoLink(@Req() req: any, @Param('id', uuid()) id: string) { return this.svc.openVideo(id, req.user.id); }
+
   @Post(':id/decision') @HttpCode(200) @Roles('reviewer')
   decide(@Req() req: any, @Param('id', uuid()) id: string, @Body() body: any) { return this.svc.decide(id, req.user.id, body ?? {}); }
 }

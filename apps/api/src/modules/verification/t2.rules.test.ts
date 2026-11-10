@@ -86,3 +86,35 @@ test('hints never carry a decision', () => {
   assert.ok(h.flags.length >= 2);
   for (const k of Object.keys(h)) assert.ok(!/approve|reject|pass|fail|decision/i.test(k), k);
 });
+
+import { T2_CHECKLIST, checkT2Decision, t2BadgeExpiry } from './t2.rules';
+
+test('T2 decision: six checklist answers always; approve needs six yeses; others need a reason', () => {
+  const yes = Object.fromEntries(T2_CHECKLIST.map((k) => [k, true]));
+  const oneNo = { ...yes, location_close: false };
+  assert.equal(checkT2Decision({ decision: 'approve', checklist: yes }).error, null);
+  assert.deepEqual(checkT2Decision({ decision: 'approve', checklist: yes }).checklist, yes);
+  assert.ok(checkT2Decision({ decision: 'approve', checklist: oneNo }).error, 'a no blocks an approval');
+  assert.ok(checkT2Decision({ decision: 'approve' }).error, 'no checklist');
+  assert.ok(checkT2Decision({ decision: 'approve', checklist: { ...yes, code_heard: 'yes' } }).error, 'answers must be true or false');
+  assert.ok(checkT2Decision({ decision: 'approve', checklist: { code_heard: true } }).error, 'missing items');
+  assert.ok(checkT2Decision({ decision: 'approve', checklist: { ...yes, extra: true } }).error, 'unknown item');
+  assert.ok(checkT2Decision({ decision: 'approve', checklist: yes, reasonCode: 't2_code_missing' }).error, 'approval has no reason');
+  assert.ok(checkT2Decision({ decision: 'reject', checklist: oneNo }).error, 'reject needs a reason');
+  assert.equal(checkT2Decision({ decision: 'reject', checklist: oneNo, reasonCode: 't2_location_mismatch' }).error, null);
+  assert.equal(checkT2Decision({ decision: 'needs_changes', checklist: yes, reasonCode: 't2_video_unusable' }).error, null, 'a reviewer may ask for changes even with six yeses');
+  assert.equal(checkT2Decision({ decision: 'reject', checklist: oneNo, reasonCode: 'suspected_forgery' }).error, null);
+  assert.ok(checkT2Decision({ decision: 'reject', checklist: oneNo, reasonCode: 'doc_expired' }).error, 'document-only reasons do not apply to a video');
+  assert.ok(checkT2Decision({ decision: 'reject', checklist: oneNo, reasonCode: 'other' }).error, 'other needs a note');
+  assert.equal(checkT2Decision({ decision: 'reject', checklist: oneNo, reasonCode: 'other', note: 'Filmed a screen' }).error, null);
+  assert.ok(checkT2Decision({ decision: 'reject', checklist: oneNo, reasonCode: 't2_code_missing', note: 'x'.repeat(501) }).error);
+  assert.ok(checkT2Decision({ decision: 'maybe', checklist: yes }).error);
+});
+
+test('T2 badge lasts six calendar months, never beyond the database limit of 186 days', () => {
+  assert.equal(t2BadgeExpiry(new Date('2026-11-07T10:00:00Z')).toISOString(), '2027-05-07T10:00:00.000Z');
+  for (const d of ['2026-01-31', '2026-08-31', '2027-12-31', '2028-02-29']) {
+    const from = new Date(d + 'T00:00:00Z'); const days = (t2BadgeExpiry(from).getTime() - from.getTime()) / 86_400_000;
+    assert.ok(days > 170 && days <= 186, `${d}: ${days}`);
+  }
+});

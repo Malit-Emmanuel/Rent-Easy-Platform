@@ -120,3 +120,40 @@ export interface TakeRequestCheck { mimeType: string; sizeBytes: number }
 
 /** Real property videos stay switched off until legal clearance: the feature is off unless T2_ENABLED=true is set on purpose. */
 export const t2Enabled = (env: NodeJS.ProcessEnv = process.env) => env.T2_ENABLED === 'true';
+
+// ---- S5d: the reviewer's decision on a T2 case ------------------------------------------------------------------------
+
+/** Reasons a reviewer may give on a T2 case: the six video reasons, plus the two general ones that can apply to any case. */
+export const T2_REASON_CODES = ['t2_code_missing', 't2_location_mismatch', 't2_property_mismatch', 't2_unit_not_shown', 't2_video_unusable', 't2_suspected_replay', 'suspected_forgery', 'other'] as const;
+/** The six questions the reviewer answers yes or no on every T2 decision (same keys the database checks before an approval). */
+export const T2_CHECKLIST = ['code_heard', 'place_matches_address', 'units_shown', 'footage_continuous', 'location_close', 'matches_documents'] as const;
+export const T2_BADGE_MONTHS = 6;
+export const T2_VIDEO_LINK_SEC = 300;   // a video link works for 5 minutes
+
+/** Six calendar months from the issue date (the database allows at most 186 days). */
+export function t2BadgeExpiry(from: Date): Date { const d = new Date(from); d.setUTCMonth(d.getUTCMonth() + T2_BADGE_MONTHS); return d; }
+
+/**
+ * Checks a reviewer's decision on a T2 case. Every decision carries all six checklist answers (a record of what was looked at);
+ * approving needs six yeses, the other two need a reason. A "no" never decides anything by itself: the reviewer still chooses.
+ */
+export function checkT2Decision(d: { decision?: unknown; reasonCode?: unknown; note?: unknown; checklist?: unknown }): { error: string | null; checklist: Record<string, boolean> | null } {
+  const fail = (error: string) => ({ error, checklist: null });
+  if (d.decision !== 'approve' && d.decision !== 'needs_changes' && d.decision !== 'reject') return fail('decision must be approve, needs_changes or reject');
+  if (d.note !== undefined && d.note !== null && typeof d.note !== 'string') return fail('note must be text');
+  const note = typeof d.note === 'string' ? d.note.trim() : '';
+  if (note.length > 500) return fail('note is limited to 500 characters');
+  const raw = d.checklist as Record<string, unknown> | null | undefined;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fail('answer all six checklist items');
+  const checklist: Record<string, boolean> = {};
+  for (const k of T2_CHECKLIST) { if (typeof raw[k] !== 'boolean') return fail('answer all six checklist items with yes or no'); checklist[k] = raw[k] as boolean; }
+  if (Object.keys(raw).some((k) => !(T2_CHECKLIST as readonly string[]).includes(k))) return fail('unknown checklist item');
+  if (d.decision === 'approve') {
+    if (d.reasonCode) return fail('an approval has no reason code');
+    if (T2_CHECKLIST.some((k) => !checklist[k])) return fail('every checklist item must be yes to approve');
+    return { error: null, checklist };
+  }
+  if (typeof d.reasonCode !== 'string' || !(T2_REASON_CODES as readonly string[]).includes(d.reasonCode)) return fail('a valid reason code is required');
+  if (d.reasonCode === 'other' && !note) return fail('the reason "other" needs a written note');
+  return { error: null, checklist };
+}
