@@ -47,11 +47,13 @@ export class ReviewService {
 
   async claim(caseId: string, reviewerId: string) {
     const c = await this.pool.connect();
+    let ownOrg = false;
     try {
       await c.query('BEGIN');
       const row = (await c.query(`${ReviewService.SELECT} WHERE c.id = $1 FOR UPDATE OF c`, [caseId])).rows[0];
       // Same answer for "does not exist" and "you may not see it", so a reviewer cannot probe other organisations.
-      const hidden = !row || !['t1', 't2'].includes(row.tier) || (await c.query(`SELECT 1 FROM identity.memberships WHERE user_id=$1 AND org_id=(SELECT org_id FROM verification.cases WHERE id=$2)`, [reviewerId, caseId])).rowCount! > 0
+      ownOrg = !!row && (await c.query(`SELECT 1 FROM identity.memberships WHERE user_id=$1 AND org_id=(SELECT org_id FROM verification.cases WHERE id=$2)`, [reviewerId, caseId])).rowCount! > 0;
+      const hidden = !row || !['t1', 't2'].includes(row.tier) || ownOrg
         || (row.is_appeal && (await c.query(`SELECT 1 FROM verification.cases o JOIN verification.cases a ON a.appeal_of = o.id WHERE a.id=$1 AND o.decided_by=$2`, [caseId, reviewerId])).rowCount! > 0);
       if (hidden) throw new NotFoundException('Case not found');
       if (row.status === 'in_review' && row.claimed_by === reviewerId) { await c.query('COMMIT'); return this.shape(row, reviewerId); }   // claiming twice is harmless
@@ -60,16 +62,36 @@ export class ReviewService {
       await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,'verification.case_claimed','verification_case',$2,'{}')`, [reviewerId, caseId]);
       await c.query('COMMIT');
       return this.shape({ ...row, status: 'in_review', claimed_by: reviewerId, claimed_at: up.claimed_at }, reviewerId);
-    } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
+    } catch (e) {
+      await c.query('ROLLBACK').catch(() => {});
+      // The reviewer still gets the same plain "not found"; the refused attempt is recorded for the integrity report (rule 10).
+      if (ownOrg) await this.audit.record({ actorId: reviewerId, action: 'verification.own_org_claim_refused', subjectType: 'verification_case', subjectId: caseId }).catch(() => {});
+      throw e;
+    } finally { c.release(); }
+  }
+
+  /** Writes the time record for a stretch of work that has just ended (in the caller's transaction). */
+  async closeSession(c: { query: (q: string, v?: unknown[]) => Promise<any> }, caseId: string, reviewerId: string, claimedAt: Date | null, reason: 'decided' | 'released' | 'sent_back' | 'admin_released') {
+    if (!claimedAt) return;
+    // A savepoint, so a problem with the time record can never stop a decision or a release.
+    await c.query('SAVEPOINT time_record');
+    try { await c.query(`SELECT verification.close_review_session($1,$2,$3,clock_timestamp(),$4)`, [caseId, reviewerId, claimedAt, reason]); await c.query('RELEASE SAVEPOINT time_record'); }
+    catch { await c.query('ROLLBACK TO SAVEPOINT time_record'); }
   }
 
   /** Give a case back to the queue. Only the reviewer holding it can do this. */
   async release(caseId: string, reviewerId: string) {
-    const r = await this.pool.query(
-      `UPDATE verification.cases SET status='submitted', claimed_by=NULL, claimed_at=NULL WHERE id=$1 AND status='in_review' AND claimed_by=$2 RETURNING id`, [caseId, reviewerId]);
-    if (!r.rowCount) throw new NotFoundException('Case not found');
-    await this.audit.record({ actorId: reviewerId, action: 'verification.case_released', subjectType: 'verification_case', subjectId: caseId });
-    return { id: caseId, status: 'submitted' };
+    const c = await this.pool.connect();
+    try {
+      await c.query('BEGIN');
+      const held = (await c.query(`SELECT claimed_at FROM verification.cases WHERE id=$1 AND status='in_review' AND claimed_by=$2 FOR UPDATE`, [caseId, reviewerId])).rows[0];
+      if (!held) throw new NotFoundException('Case not found');
+      await this.closeSession(c, caseId, reviewerId, held.claimed_at, 'released');
+      await c.query(`UPDATE verification.cases SET status='submitted', claimed_by=NULL, claimed_at=NULL WHERE id=$1`, [caseId]);
+      await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,'verification.case_released','verification_case',$2,'{}')`, [reviewerId, caseId]);
+      await c.query('COMMIT');
+      return { id: caseId, status: 'submitted' };
+    } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
   }
 
   /** The case as the reviewer who holds it sees it (or, afterwards, the one who decided it). Every read is logged. */
@@ -182,7 +204,7 @@ export class ReviewService {
     const c = await this.pool.connect();
     try {
       await c.query('BEGIN');
-      const row = (await c.query(`SELECT id, org_id, property_id, tier, appeal_of, status, claimed_by, due_at, submitted_at, (SELECT count(*)::int FROM verification.case_files WHERE case_id=$1) AS files FROM verification.cases WHERE id=$1 FOR UPDATE`, [caseId])).rows[0];
+      const row = (await c.query(`SELECT id, org_id, property_id, tier, appeal_of, status, claimed_by, claimed_at, due_at, submitted_at, (SELECT count(*)::int FROM verification.case_files WHERE case_id=$1) AS files FROM verification.cases WHERE id=$1 FOR UPDATE`, [caseId])).rows[0];
       if (!row || row.claimed_by !== reviewerId) throw new NotFoundException('Case not found');
       if (row.status !== 'in_review') throw new ConflictException({ code: 'case_not_open', message: 'This case has already been decided.' });
       if (decision === 'approve') {
@@ -218,6 +240,7 @@ export class ReviewService {
         if (/checklist item|T2 approval needs submitted evidence/.test(msg)) throw new UnprocessableEntityException({ code: 'checklist_incomplete', message: 'Every checklist item must be yes before approving.' });
         throw e;
       }
+      await this.closeSession(c, caseId, reviewerId, row.claimed_at, final ? 'decided' : 'sent_back');
       await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,$2,'verification_case',$3,$4)`,
         [reviewerId, `verification.${status}`, caseId, JSON.stringify({ propertyId: row.property_id, orgId: row.org_id, reasonCode: reason, badgeId, flagged: reason === 'suspected_forgery' || reason === 't2_suspected_replay', ...(isT2 ? { tier: 't2', checklist } : {}) })]);
       await c.query('COMMIT');
