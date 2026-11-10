@@ -10,12 +10,13 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { ConsentService } from './modules/consent/consent.service';
 import { EventsModule } from './modules/events/events.module';
 import { SupplyModule } from './modules/supply/supply.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { IntegrityModule } from './modules/integrity/integrity.module';
 import { VerificationModule } from './modules/verification/verification.module';
 import { ProvidersModule } from './providers/providers.module';
 
 @Module({
-  imports: [AuditModule, EventsModule, ProvidersModule, AuthModule, IdentityModule, JobsModule, SupplyModule, VerificationModule, IntegrityModule],
+  imports: [AuditModule, EventsModule, ProvidersModule, AuthModule, IdentityModule, JobsModule, SupplyModule, VerificationModule, IntegrityModule, ReportsModule],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }, { provide: APP_GUARD, useClass: RolesGuard }, ConsentService],
 })

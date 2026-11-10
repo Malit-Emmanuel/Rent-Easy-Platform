@@ -38,7 +38,7 @@ t('S6c: the daily scan flags the badly behaving reviewer only; alerts are adviso
       if (o.status === 'approved') {
         badge = randomUUID();
         await fx.query(`INSERT INTO verification.badges (id, subject_type, subject_id, level, verified_by, issued_at, expires_at) VALUES ($1,'property',$2,$3,$4,$5,$6)`,
-          [badge, props[o.org], o.tier === 't2' ? 't2_video' : 't1_documented', who.id, o.at, new Date(o.at.getTime() + 180 * 24 * H)]);
+          [badge, props[o.org], o.tier === 't2' ? 't2_video' : 't1_documented', who.id, o.at, new Date(o.at.getTime() + MIN)]);   // already expired, so these fixtures never appear in other tests' badge lists
         badgeOf[id] = badge;
       }
       await fx.query(
