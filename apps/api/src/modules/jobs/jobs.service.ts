@@ -4,6 +4,7 @@ import IORedis from 'ioredis';
 import { redisOptionsFromEnv } from './redis-options';
 import { AuthService } from '../auth/auth.service';
 import { IdentityVerificationService } from '../identity/identity.service';
+import { T2RetentionService } from '../verification/t2.retention';
 
 export const QUEUE_NAME = 'maintenance';
 
@@ -20,15 +21,18 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
   readonly schedules = [
     { name: 'expire-verifications', everyMs: 10 * 60 * 1000 },
     { name: 'purge-auth-data', everyMs: 24 * 60 * 60 * 1000 },
+    { name: 'purge-t2-videos', everyMs: 24 * 60 * 60 * 1000 },
   ];
 
   constructor(
     @Inject(IdentityVerificationService) identity: IdentityVerificationService,
     @Inject(AuthService) auth: AuthService,
+    @Inject(T2RetentionService) t2Retention: T2RetentionService,
   ) {
     this.handlers = {
       'expire-verifications': () => identity.expireStale(),
       'purge-auth-data': () => auth.purgeExpired(),
+      'purge-t2-videos': () => t2Retention.purge(),
     };
   }
 

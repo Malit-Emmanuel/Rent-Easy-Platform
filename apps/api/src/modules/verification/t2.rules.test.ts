@@ -87,7 +87,7 @@ test('hints never carry a decision', () => {
   for (const k of Object.keys(h)) assert.ok(!/approve|reject|pass|fail|decision/i.test(k), k);
 });
 
-import { T2_CHECKLIST, checkT2Decision, t2BadgeExpiry } from './t2.rules';
+import { T2_CHECKLIST, T2_REASON_CODES, checkT2Decision, t2BadgeExpiry } from './t2.rules';
 
 test('T2 decision: six checklist answers always; approve needs six yeses; others need a reason', () => {
   const yes = Object.fromEntries(T2_CHECKLIST.map((k) => [k, true]));
@@ -117,4 +117,12 @@ test('T2 badge lasts six calendar months, never beyond the database limit of 186
     const from = new Date(d + 'T00:00:00Z'); const days = (t2BadgeExpiry(from).getTime() - from.getTime()) / 86_400_000;
     assert.ok(days > 170 && days <= 186, `${d}: ${days}`);
   }
+});
+
+import { checkRevoke as checkRevokeS5e } from './cases.rules';
+test('withdrawing a video badge accepts only video reasons', () => {
+  assert.equal(checkRevokeS5e({ reasonCode: 't2_suspected_replay' }, T2_REASON_CODES), null);
+  assert.match(checkRevokeS5e({ reasonCode: 'doc_expired' }, T2_REASON_CODES) ?? '', /valid reason/);
+  assert.match(checkRevokeS5e({ reasonCode: 'other' }, T2_REASON_CODES) ?? '', /note/);
+  assert.equal(checkRevokeS5e({ reasonCode: 'doc_expired' }), null, 'T1 default list unchanged');
 });

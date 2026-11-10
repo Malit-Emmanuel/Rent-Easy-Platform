@@ -2,12 +2,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '@/components/I18n';
 import { api } from '@/lib/client';
-import { AUDIO_BPS, MAX_SECONDS, MIN_SECONDS, VIDEO_BPS, baseMime, blockerKey, checkTake, clockSkewMs, fmtClock, inAppBrowser, pickMime, positionError, secondsLeft, stamp, t2Error } from '@/lib/recorder';
+import { AUDIO_BPS, MAX_SECONDS, MIN_SECONDS, VIDEO_BPS, baseMime, blockerKey, cameraError, checkTake, clockSkewMs, fmtClock, inAppBrowser, pickMime, positionError, secondsLeft, stamp, t2Error } from '@/lib/recorder';
 
 type Unit = { id: string; label: string };
 type Challenge = { id: string; mine: boolean; expiresAt: string; takesLeft: number; code?: string; unitsToShow?: Unit[] };
 type Status = {
-  now: string; enabled: boolean; eligible: boolean; blockers: string[]; badge: null | { validUntil: string }; challenge: Challenge | null;
+  now: string; enabled: boolean; eligible: boolean; blockers: string[]; badge: null | { validUntil: string; ownExpiry: string; renewable: boolean }; suspended?: null | { validUntil: string };
+  badgeEnded?: null | { kind: 'revoked' | 'expired'; on: string; reasonCode: string | null; note: string | null }; challenge: Challenge | null;
   case: null | { status: string; dueAt: string | null; reasonCode: string | null; note: string | null; isAppeal: boolean; needsNewRecording: boolean; canAppeal: boolean };
 };
 type Reading = { lat: number; lon: number; accuracyM: number; at: string };
@@ -46,11 +47,14 @@ export default function T2Card({ orgId, propertyId, canWrite }: { orgId: string;
 
   if (!s) return null;
   const c = s.case;
-  if (!s.enabled && !c && !s.badge) return null;       // switched off: the card stays out of sight
+  if (!s.enabled && !c && !s.badge && !s.suspended && !s.badgeEnded) return null;       // switched off: the card stays out of sight
 
   const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
-  const label = s.badge ? t('t2_state_approved') : !c ? t('t2_none') : c.isAppeal && ['submitted', 'in_review'].includes(c.status) ? t('t2_state_appeal') : word('t2_state_' + c.status);
-  const tone = s.badge ? 'ok' : c?.status === 'rejected' ? 'bad' : c ? 'wait' : 'none';
+  const open = !!c && c.status !== 'approved';          // a newer request is under way or was turned down
+  const ended = !s.badge && !s.suspended && !open ? s.badgeEnded ?? null : null;
+  const label = s.badge ? t('t2_state_approved') : s.suspended && !open ? t('t2_state_suspended') : open ? (c!.isAppeal && ['submitted', 'in_review'].includes(c!.status) ? t('t2_state_appeal') : word('t2_state_' + c!.status)) : ended ? t(ended.kind === 'revoked' ? 't2_state_withdrawn' : 't2_state_expired') : t('t2_none');
+  const tone = s.badge ? 'ok' : open ? (c!.status === 'rejected' ? 'bad' : 'wait') : s.suspended ? 'wait' : ended?.kind === 'revoked' ? 'bad' : 'none';
+  const mayStart = !s.badge || s.badge.renewable;
   const inApp = typeof navigator !== 'undefined' && inAppBrowser(navigator.userAgent);
   const mime = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined' ? pickMime((m) => MediaRecorder.isTypeSupported(m)) : null;
   const canRecord = !inApp && !!mime && typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
@@ -70,7 +74,7 @@ export default function T2Card({ orgId, propertyId, canWrite }: { orgId: string;
     setErr('');
     try {
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true });
-    } catch { setErr(t('t2_err_camera')); return; }
+    } catch (e: any) { setErr(t(cameraError(e?.name))); return; }
     setPhase('camera');
     setTimeout(() => { if (video.current && stream.current) { video.current.srcObject = stream.current; video.current.muted = true; video.current.play().catch(() => {}); } }, 0);
   }
@@ -135,19 +139,26 @@ export default function T2Card({ orgId, propertyId, canWrite }: { orgId: string;
     <section className="panel vcard" aria-labelledby="t2-h">
       <div className="row between"><h2 id="t2-h">{t('t2_title')}</h2><span className={`vstate ${tone}`}>{label}</span></div>
       {s.badge && <p className="msg">{t('t2_verifiedUntil')} {new Date(s.badge.validUntil).toLocaleDateString()}</p>}
+      {s.badge?.renewable && <p className="msg">{t('t2_renewHint')}</p>}
+      {!s.badge && s.suspended && <p className="msg">{t('t2_suspendedNote')}</p>}
+      {ended && (
+        <p className="msg">{ended.kind === 'revoked' ? t('t2_endedRevoked') : t('t2_endedExpired')} {new Date(ended.on).toLocaleDateString()}.
+          {ended.kind === 'revoked' && ended.reasonCode ? <><br /><strong>{t('pvReason')}:</strong> {word('rc_' + ended.reasonCode)}{ended.note ? <><br /><strong>{t('pvNote')}:</strong> {ended.note}</> : null}</> : null}
+          {' '}{t('t2_endedNext')}</p>
+      )}
       {!s.badge && c && ['submitted', 'in_review'].includes(c.status) && c.dueAt && <p className="msg">{t('t2_due')} {new Date(c.dueAt).toLocaleDateString()}. {t('pvEvidenceFrozen')}</p>}
       {!s.badge && c && ['rejected', 'needs_changes'].includes(c.status) && (
         <p className="msg"><strong>{t('pvReason')}:</strong> {c.reasonCode ? word('rc_' + c.reasonCode) : ''}{c.note ? <><br /><strong>{t('pvNote')}:</strong> {c.note}</> : null}{c.status === 'needs_changes' ? <><br />{t('t2_needsHint')}</> : null}</p>
       )}
       {c?.status === 'rejected' && c.isAppeal && !s.badge && <p className="msg"><strong>{t('pvFinal')}</strong></p>}
 
-      {canWrite && phase === 'idle' && !s.badge && (
+      {canWrite && phase === 'idle' && mayStart && (
         <>
-          {!c && <p className="msg">{t('t2_intro')}</p>}
+          {!c && !s.badge && !ended && !s.suspended && <p className="msg">{t('t2_intro')}</p>}
           {s.blockers.filter((b) => b !== 't2_disabled' && b !== 'already_t2').length > 0 && !(s.challenge?.mine) && <ul className="msg">{s.blockers.filter((b) => b !== 't2_disabled' && b !== 'already_t2').map((b) => <li key={b}>{word(blockerKey(b))}</li>)}</ul>}
           {(s.eligible || ch) && (
             ch ? <button onClick={() => setPhase('challenge')}>{t('t2_openCamera')}</button>
-               : <button disabled={busy || !canRecord} onClick={() => setPhase('notice')}>{c?.needsNewRecording ? t('t2_state_needs_changes') : t('t2_start')}</button>
+               : <button disabled={busy || !canRecord} onClick={() => setPhase('notice')}>{c?.needsNewRecording ? t('t2_state_needs_changes') : s.badge?.renewable ? t('t2_renew') : t('t2_start')}</button>
           )}
           {(s.eligible || ch) && inApp && <p className="error" role="alert">{t('t2_inApp')}</p>}
           {(s.eligible || ch) && !inApp && !canRecord && <p className="error" role="alert">{t('t2_noRecorder')}</p>}

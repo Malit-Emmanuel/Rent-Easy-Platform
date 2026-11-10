@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
 import { STORAGE_PORT, StoragePort } from '../supply/files/storage.port';
 import { badgeExpiry, checkDecision, checkRevoke } from './cases.rules';
-import { T2_CHECKLIST, T2_VIDEO_LINK_SEC, checkT2Decision, t2BadgeExpiry } from './t2.rules';
+import { T2_CHECKLIST, T2_REASON_CODES, T2_VIDEO_LINK_SEC, checkT2Decision, t2BadgeExpiry } from './t2.rules';
 
 const LINK_TTL_SEC = 300;   // a document link works for 5 minutes
 
@@ -228,30 +228,34 @@ export class ReviewService {
   /** Active documented badges a reviewer may revoke (never those of an organisation they belong to), soonest to expire first. */
   async badges(reviewerId: string) {
     const rows = (await this.pool.query(
-      `SELECT b.id, b.issued_at, b.expires_at, p.name AS property_name, p.address_text, o.name AS org_name
+      `SELECT b.id, b.level, b.issued_at, b.expires_at, p.name AS property_name, p.address_text, o.name AS org_name,
+              (b.level = 't1_documented' OR EXISTS (SELECT 1 FROM verification.property_badge_status s WHERE s.property_id = p.id AND s.t2_effective_until IS NOT NULL)) AS counts_now
          FROM verification.badges b JOIN supply.properties p ON p.id = b.subject_id JOIN identity.organizations o ON o.id = p.org_id
-        WHERE b.subject_type='property' AND b.level='t1_documented' AND b.revoked_at IS NULL AND b.expires_at > now()
+        WHERE b.subject_type='property' AND b.level IN ('t1_documented','t2_video') AND b.revoked_at IS NULL AND b.expires_at > now()
           AND NOT EXISTS (SELECT 1 FROM identity.memberships m WHERE m.user_id=$1 AND m.org_id = p.org_id)
         ORDER BY b.expires_at ASC LIMIT 200`, [reviewerId])).rows;
     await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, resource, reason) VALUES ($1,'verification_badge_list',$2)`, [reviewerId, `listed ${rows.length}`]);
-    return rows.map((r: any) => ({ id: r.id, propertyName: r.property_name, address: r.address_text, orgName: r.org_name, issuedAt: r.issued_at, expiresAt: r.expires_at }));
+    // "tier" tells T1 from T2; "suspended" is a T2 badge that does not count at the moment because its T1 has lapsed.
+    return rows.map((r: any) => ({ id: r.id, tier: r.level === 't2_video' ? 't2' : 't1', suspended: !r.counts_now, propertyName: r.property_name, address: r.address_text, orgName: r.org_name, issuedAt: r.issued_at, expiresAt: r.expires_at }));
   }
 
-  /** Withdraw a badge. A reason code is mandatory; the property stops counting as verified at once. */
+  /** Withdraw a T1 or T2 badge. A reason code is mandatory; the property stops counting as verified at once. */
   async revoke(badgeId: string, reviewerId: string, body: { reasonCode?: unknown; note?: unknown }) {
-    const bad = checkRevoke(body); if (bad) throw new BadRequestException(bad);
+    const level: string | undefined = (await this.pool.query(`SELECT level FROM verification.badges WHERE id=$1 AND subject_type='property'`, [badgeId])).rows[0]?.level;
+    const isT2 = level === 't2_video';
+    const bad = checkRevoke(body, isT2 ? T2_REASON_CODES : undefined); if (bad) throw new BadRequestException(bad);
     const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
     const c = await this.pool.connect();
     try {
       await c.query('BEGIN');
       const row = (await c.query(
-        `SELECT b.id, b.subject_id, p.org_id FROM verification.badges b JOIN supply.properties p ON p.id = b.subject_id
-          WHERE b.id=$1 AND b.subject_type='property' AND b.level='t1_documented' AND b.revoked_at IS NULL AND b.expires_at > now() FOR UPDATE OF b`, [badgeId])).rows[0];
+        `SELECT b.id, b.level, b.subject_id, p.org_id FROM verification.badges b JOIN supply.properties p ON p.id = b.subject_id
+          WHERE b.id=$1 AND b.subject_type='property' AND b.level IN ('t1_documented','t2_video') AND b.revoked_at IS NULL AND b.expires_at > now() FOR UPDATE OF b`, [badgeId])).rows[0];
       const own = row && (await c.query('SELECT 1 FROM identity.memberships WHERE user_id=$1 AND org_id=$2', [reviewerId, row.org_id])).rowCount! > 0;
       if (!row || own) throw new NotFoundException('Badge not found');
       await c.query(`UPDATE verification.badges SET revoked_at=now(), revoke_reason_code=$2, revoke_note=$3 WHERE id=$1`, [badgeId, body.reasonCode, note]);
       await c.query(`INSERT INTO governance.audit_events (actor_id, action, subject_type, subject_id, metadata) VALUES ($1,'verification.badge_revoked','badge',$2,$3)`,
-        [reviewerId, badgeId, JSON.stringify({ propertyId: row.subject_id, orgId: row.org_id, reasonCode: body.reasonCode, flagged: body.reasonCode === 'suspected_forgery' })]);
+        [reviewerId, badgeId, JSON.stringify({ propertyId: row.subject_id, orgId: row.org_id, reasonCode: body.reasonCode, flagged: body.reasonCode === 'suspected_forgery' || body.reasonCode === 't2_suspected_replay', ...(row.level === 't2_video' ? { tier: 't2' } : {}) })]);
       await c.query('COMMIT');
       return { id: badgeId, revoked: true, reasonCode: body.reasonCode };
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
@@ -268,7 +272,7 @@ export class ReviewService {
            JOIN supply.properties p ON p.id = c.property_id JOIN identity.organizations o ON o.id = c.org_id
           WHERE a.actor_id = $1 AND a.subject_type = 'verification_case' AND a.action IN ('verification.approved','verification.rejected','verification.needs_changes')
          UNION ALL
-         SELECT a.occurred_at, 'badge_revoked', a.metadata->>'reasonCode', b.id, false, p.name, o.name, 't1'
+         SELECT a.occurred_at, 'badge_revoked', a.metadata->>'reasonCode', b.id, false, p.name, o.name, CASE b.level WHEN 't2_video' THEN 't2' ELSE 't1' END
            FROM governance.audit_events a
            JOIN verification.badges b ON b.id::text = a.subject_id
            JOIN supply.properties p ON p.id = b.subject_id JOIN identity.organizations o ON o.id = p.org_id

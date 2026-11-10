@@ -33,7 +33,7 @@ redisTest('scheduler registers, and a queued job runs through Redis and does rea
   const { JobsService } = await import('./jobs.service');
   const jobs = h.app.get(JobsService);
   const names = await jobs.schedulerNames();
-  assert.deepEqual(names.sort(), ['expire-verifications', 'purge-auth-data']);
+  assert.deepEqual(names.sort(), ['expire-verifications', 'purge-auth-data', 'purge-t2-videos']);
 
   const u = await h.login(); const uid = await h.userId(u.p);
   const id = (await h.pool.query(`INSERT INTO identity.verification_sessions (id, user_id, provider, status, provider_session_id, expires_at)

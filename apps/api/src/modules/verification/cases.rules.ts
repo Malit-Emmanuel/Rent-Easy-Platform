@@ -79,11 +79,11 @@ export function checkDecision(d: { decision?: unknown; reasonCode?: unknown; not
 export function badgeExpiry(from: Date): Date { const d = new Date(from); d.setUTCMonth(d.getUTCMonth() + BADGE_MONTHS); return d; }
 
 /** A revoke always needs a valid reason code; "other" also needs a written note. */
-export function checkRevoke(d: { reasonCode?: unknown; note?: unknown }): string | null {
+export function checkRevoke(d: { reasonCode?: unknown; note?: unknown }, allowed: readonly string[] = REASON_CODES): string | null {
   if (d.note !== undefined && d.note !== null && typeof d.note !== 'string') return 'note must be text';
   const note = typeof d.note === 'string' ? d.note.trim() : '';
   if (note.length > 500) return 'note is limited to 500 characters';
-  if (typeof d.reasonCode !== 'string' || !(REASON_CODES as readonly string[]).includes(d.reasonCode)) return 'a valid reason code is required';
+  if (typeof d.reasonCode !== 'string' || !allowed.includes(d.reasonCode)) return 'a valid reason code is required';
   if (d.reasonCode === 'other' && !note) return 'the reason "other" needs a written note';
   return null;
 }

@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
 import { checkFileRequest, storagePath } from '../supply/files/files.rules';
 import { STORAGE_PORT, StoragePort } from '../supply/files/storage.port';
-import { addWorkingDays, canAppeal } from './cases.rules';
+import { RENEWAL_WINDOW_DAYS, addWorkingDays, canAppeal } from './cases.rules';
 import {
   CHALLENGE_MINUTES, MAX_TAKES, SAME_SPOT_M, T2_DEADLINE_WORKING_DAYS, UPLOAD_GRACE_MINUTES,
   checkConsent, checkReadings, computeHints, haversineM, newCode, pickUnits, t2Enabled, t2QueueFlags, unitsToShow,
@@ -45,7 +45,7 @@ export class T2Service {
   /** What the manager sees on the T2 part of the Verification card. */
   async status(orgId: string, propertyId: string, userId: string) {
     const prop = await this.property(orgId, propertyId);
-    const [t1, t2, open, ch, last, idOk] = await Promise.all([
+    const [t1, t2, open, ch, last, idOk, ended] = await Promise.all([
       this.pool.query(`SELECT expires_at FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' AND revoked_at IS NULL AND expires_at > now() LIMIT 1`, [propertyId]),
       this.pool.query(`SELECT expires_at FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t2_video' AND revoked_at IS NULL AND expires_at > now() ORDER BY expires_at DESC LIMIT 1`, [propertyId]),
       this.pool.query(`SELECT 1 FROM verification.cases WHERE property_id=$1 AND status IN ('submitted','in_review') LIMIT 1`, [propertyId]),
@@ -56,6 +56,7 @@ export class T2Service {
                 (SELECT count(*)::int FROM verification.t2_evidence e WHERE e.case_id = COALESCE(c.appeal_of, c.id)) AS attempts
            FROM verification.cases c WHERE property_id=$1 AND tier='t2' ORDER BY submitted_at DESC, id LIMIT 1`, [propertyId]),
       this.idVerified(userId),
+      this.pool.query(`SELECT revoked_at, expires_at, revoke_reason_code, revoke_note FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t2_video' ORDER BY issued_at DESC LIMIT 1`, [propertyId]),
     ]);
     const lastCase = last.rows[0] ?? null;
     const otherOpen = (open.rowCount ?? 0) > 0;
@@ -66,7 +67,13 @@ export class T2Service {
     if (!t1.rowCount) blockers.push('no_valid_t1');
     if (prop.lat === null) blockers.push('no_position');
     if (otherOpen || t1Case) blockers.push('case_open');
-    if (t2.rowCount && t1.rowCount) blockers.push('already_t2');
+    // A valid video badge blocks a new request, except in its last 30 days (renewal), so there is no gap.
+    const t2Expiry: Date | null = t2.rows[0] ? new Date(t2.rows[0].expires_at) : null;
+    const renewable = !!t2Expiry && t2Expiry.getTime() - Date.now() <= RENEWAL_WINDOW_DAYS * 86_400_000;
+    if (t2.rowCount && t1.rowCount && !renewable) blockers.push('already_t2');
+    const e = ended.rows[0];
+    const badgeEnded = !t2.rowCount && e && (e.revoked_at || new Date(e.expires_at) <= new Date())
+      ? { kind: e.revoked_at ? 'revoked' : 'expired', on: e.revoked_at ?? e.expires_at, reasonCode: e.revoke_reason_code ?? null, note: e.revoke_note ?? null } : null;
     let challenge: any = null;
     const c = ch.rows[0];
     if (c) {
@@ -77,7 +84,10 @@ export class T2Service {
     return {
       now: new Date().toISOString(),   // lets the phone correct for a wrong clock when it stamps its location readings
       enabled: t2Enabled(), eligible: blockers.length === 0 && !challenge, blockers,
-      badge: t2.rows[0] && t1.rows[0] ? { validUntil: t2.rows[0].expires_at } : null,
+      // A video badge counts only while the documented (T1) badge is valid, and only until the earlier of the two ends.
+      badge: t2Expiry && t1.rows[0] ? { validUntil: new Date(Math.min(t2Expiry.getTime(), new Date(t1.rows[0].expires_at).getTime())).toISOString(), ownExpiry: t2Expiry.toISOString(), renewable } : null,
+      suspended: t2Expiry && !t1.rows[0] ? { validUntil: t2Expiry.toISOString() } : null,
+      badgeEnded,
       challenge,
       case: lastCase && {
         id: lastCase.id, status: lastCase.status, submittedAt: lastCase.submitted_at, dueAt: lastCase.due_at, paused: !!lastCase.paused_at, decidedAt: lastCase.decided_at,
@@ -103,7 +113,7 @@ export class T2Service {
       if (prop.lat === null) throw new HttpException({ code: 'no_position', message: 'Set the property position on the map first.' }, 422);
       if (!(await c.query(`SELECT 1 FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t1_documented' AND revoked_at IS NULL AND expires_at > now()`, [propertyId])).rowCount)
         throw new HttpException({ code: 'no_valid_t1', message: 'The property needs a valid document verification (T1) first.' }, 422);
-      if (await c.query(`SELECT 1 FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t2_video' AND revoked_at IS NULL AND expires_at > now()`, [propertyId]).then((r) => r.rowCount))
+      if (await c.query(`SELECT 1 FROM verification.badges WHERE subject_type='property' AND subject_id=$1 AND level='t2_video' AND revoked_at IS NULL AND expires_at > now() + make_interval(days => $2)`, [propertyId, RENEWAL_WINDOW_DAYS]).then((r) => r.rowCount))
         throw new ConflictException({ code: 'already_t2', message: 'This property already has a video verification.' });
       if (await c.query(`SELECT 1 FROM verification.cases WHERE property_id=$1 AND (status IN ('submitted','in_review') OR (status='needs_changes' AND tier <> 't2'))`, [propertyId]).then((r) => r.rowCount))
         throw new ConflictException({ code: 'case_open', message: 'This property already has a verification in progress.' });

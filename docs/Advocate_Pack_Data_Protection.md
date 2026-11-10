@@ -47,8 +47,10 @@ Every database table has row-level security switched on with no public access; t
 ## 5. Retention (provisional)
 | Data | Current setting | Note |
 |---|---|---|
-| Raw T2 video | **90 days after the case is decided** (one setting in the database) | The deletion job is **not built yet** (planned S5e). Please advise on the right period. Videos cannot be removed by the manager while the case is open or inside this period |
-| Rejected or abandoned recordings | Discarded takes are deleted when a retake is made | Confirm |
+| Raw T2 video | **90 days after the case is decided** (one setting in the database) | The deletion job is **built** (S5e) and runs once a day: it removes the stored video and marks the file deleted. The case, the two location readings, the reviewer checklist, the decision and the video's fingerprint (a hash, not the video) are kept. A video under an open appeal is not deleted until the appeal is decided. Please advise on the right period, and on whether the fingerprint may be kept longer |
+| Recordings that were never submitted | **About 24 hours after the code expired** (the daily job). Earlier takes in a session are discarded when a retake is made | Confirm |
+| Cases left at "record again" that the manager never answers | **Not yet decided**: the video currently stays until a decision is made | Please advise on an end date |
+| Property documents (T1) | No end date is set yet | Please advise |
 | T1 documents | Kept while the case and badge are active | No end date set. Please advise |
 | Location readings, fingerprint, computed notes, checklist | Kept with the case record | Please advise; readings are location data |
 | Audit trail and access log | Append-only, kept | Contains identifiers, no coordinates or codes. Please advise on period |
