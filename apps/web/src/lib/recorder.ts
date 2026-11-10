@@ -59,3 +59,10 @@ export const blockerKey = (code: string) => `t2_block_${code}`;
 export function positionError(code: number): 't2_err_locDenied' | 't2_err_locFailed' {
   return code === 1 ? 't2_err_locDenied' : 't2_err_locFailed';
 }
+
+/** Why the camera could not be opened, from the browser's error name. Denied is the only one that permissions settings can fix. */
+export function cameraError(name: string | undefined): 't2_err_camera' | 't2_err_cameraNone' | 't2_err_cameraBusy' {
+  if (name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError') return 't2_err_cameraNone';
+  if (name === 'NotReadableError' || name === 'TrackStartError' || name === 'AbortError') return 't2_err_cameraBusy';
+  return 't2_err_camera';
+}

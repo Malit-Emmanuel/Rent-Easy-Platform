@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_BYTES, MAX_SECONDS, MIN_SECONDS, AUDIO_BPS, VIDEO_BPS, baseMime, blockerKey, checkTake, clockSkewMs, fmtClock, inAppBrowser, pickMime, positionError, secondsLeft, stamp, t2Error } from './recorder';
+import { cameraError, MAX_BYTES, MAX_SECONDS, MIN_SECONDS, AUDIO_BPS, VIDEO_BPS, baseMime, blockerKey, checkTake, clockSkewMs, fmtClock, inAppBrowser, pickMime, positionError, secondsLeft, stamp, t2Error } from './recorder';
 
 test('pickMime prefers MP4 where supported (Safari) and WebM otherwise (Chrome); null if nothing works', () => {
   assert.equal(pickMime((m) => m.startsWith('video/mp4')), 'video/mp4;codecs=avc1,mp4a.40.2');
@@ -51,4 +51,9 @@ test('server answers map to messages; unknown ones fall back to the generic erro
   assert.equal(t2Error(502), 'err_storageDown'); assert.equal(t2Error(500), 'genericError');
   assert.equal(blockerKey('no_valid_t1'), 't2_block_no_valid_t1');
   assert.equal(positionError(1), 't2_err_locDenied'); assert.equal(positionError(2), 't2_err_locFailed'); assert.equal(positionError(3), 't2_err_locFailed');
+});
+
+test('camera errors: denied, missing and busy get different messages', () => {
+  assert.equal(cameraError('NotAllowedError'), 't2_err_camera'); assert.equal(cameraError('SecurityError'), 't2_err_camera'); assert.equal(cameraError(undefined), 't2_err_camera');
+  assert.equal(cameraError('NotFoundError'), 't2_err_cameraNone'); assert.equal(cameraError('NotReadableError'), 't2_err_cameraBusy');
 });
