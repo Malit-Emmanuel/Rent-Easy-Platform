@@ -17,6 +17,10 @@ export interface AppConfig {
   otpDailyCap: number;
   /** Numbers that get their code in the server log instead of a real message. Honoured in production for a few named test accounts only. */
   devOtpAllowlist: string[];
+  /** Per-address limits on sign-in (see S7). Counted per visitor address, never per person. */
+  authIpLimits: { otpRequestsPer10Min: number; distinctPhonesPerHour: number; verifyFailsPer10Min: number };
+  /** Shared secret the dashboard sends so the API may trust the visitor address it forwards. Optional; without it the address seen by the API is the dashboard's. */
+  trustedProxyKey?: string;
   africasTalking?: AfricasTalkingConfig;
   whatsapp?: WhatsAppConfig;
 }
@@ -85,11 +89,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('Production needs a real message channel (SMS_PROVIDER=africastalking or WhatsApp) or a DEV_OTP_ALLOWLIST of named test numbers');
   }
 
+  const posInt = (name: string, dflt: number) => { const v = Number(env[name] ?? dflt); if (!Number.isInteger(v) || v < 1) throw new Error(`${name} must be a positive integer`); return v; };
+  const authIpLimits = { otpRequestsPer10Min: posInt('AUTH_IP_OTP_PER_10MIN', 20), distinctPhonesPerHour: posInt('AUTH_IP_PHONES_PER_HOUR', 10), verifyFailsPer10Min: posInt('AUTH_IP_VERIFY_FAILS_PER_10MIN', 30) };
+  const trustedProxyKey = env.TRUSTED_PROXY_KEY || undefined;
+  if (trustedProxyKey && trustedProxyKey.length < 32) throw new Error('TRUSTED_PROXY_KEY must be at least 32 characters');
+
   return {
     databaseUrl: need('DATABASE_URL'), redisUrl: env.REDIS_URL ?? '', port, appEnv,
     smsProvider: sms, paymentsProvider: 'fake',
     jwtSecret: secret('JWT_SECRET'), otpPepper: secret('OTP_PEPPER'),
     otpResendCooldownSec: Number(env.OTP_RESEND_COOLDOWN_SEC ?? 30),
-    otpChannels, otpDailyCap, devOtpAllowlist, africasTalking, whatsapp,
+    otpChannels, otpDailyCap, devOtpAllowlist, authIpLimits, trustedProxyKey, africasTalking, whatsapp,
   };
 }

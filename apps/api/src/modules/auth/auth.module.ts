@@ -12,7 +12,7 @@ import { AUTH_CONFIG, AuthConfig, AuthService, defaultAuthTuning } from './auth.
   providers: [
     { provide: AUTH_CONFIG, useFactory: (): AuthConfig => {
         const c = loadConfig();
-        return { ...defaultAuthTuning, jwtSecret: c.jwtSecret, otpPepper: c.otpPepper, resendCooldownSec: c.otpResendCooldownSec };
+        return { ...defaultAuthTuning, jwtSecret: c.jwtSecret, otpPepper: c.otpPepper, resendCooldownSec: c.otpResendCooldownSec, ipLimits: c.authIpLimits, trustedProxyKey: c.trustedProxyKey };
     } },
     { provide: OTP_POLICY, useFactory: (): OtpPolicy => {
         const c = loadConfig();

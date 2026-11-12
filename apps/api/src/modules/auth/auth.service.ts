@@ -11,8 +11,9 @@ export const AUTH_CONFIG = 'AUTH_CONFIG';
 export interface AuthConfig {
   jwtSecret: string; otpPepper: string; resendCooldownSec: number;
   accessTtlSec: number; refreshTtlDays: number; otpTtlSec: number; maxAttempts: number; maxRequestsPer10Min: number;
+  ipLimits: { otpRequestsPer10Min: number; distinctPhonesPerHour: number; verifyFailsPer10Min: number }; trustedProxyKey?: string;
 }
-export const defaultAuthTuning = { accessTtlSec: 15 * 60, refreshTtlDays: 30, otpTtlSec: 5 * 60, maxAttempts: 5, maxRequestsPer10Min: 3 };
+export const defaultAuthTuning = { accessTtlSec: 15 * 60, refreshTtlDays: 30, otpTtlSec: 5 * 60, maxAttempts: 5, maxRequestsPer10Min: 3, ipLimits: { otpRequestsPer10Min: 20, distinctPhonesPerHour: 10, verifyFailsPer10Min: 30 } };
 
 export interface TokenPair { accessToken: string; refreshToken: string; expiresIn: number }
 const sha256 = (s: string) => createHash('sha256').update(s).digest();
@@ -27,6 +28,10 @@ export class AuthService {
     @Inject(AUTH_CONFIG) private cfg: AuthConfig,
   ) {}
 
+  get trustedProxyKey() { return this.cfg.trustedProxyKey; }
+  private keyed(label: string, v: string) { return createHmac('sha256', this.cfg.otpPepper).update(`${label}:${v}`).digest(); }
+  private tooMany() { return new HttpException('Too many requests. Try again later.', 429); }
+
   private hmac(challengeId: string, code: string) {
     return createHmac('sha256', this.cfg.otpPepper).update(`${challengeId}:${code}`).digest();
   }
@@ -35,10 +40,20 @@ export class AuthService {
    * Always answers the same way whether or not the number has an account (no user enumeration).
    * `preferred` lets the person ask for SMS when WhatsApp did not arrive; it only changes the order channels are tried in.
    */
-  async requestOtp(rawPhone: string, preferred?: string): Promise<{ expiresInSec: number; channel: 'whatsapp' | 'sms'; resendAfterSec: number }> {
+  async requestOtp(rawPhone: string, preferred?: string, ip?: string | null): Promise<{ expiresInSec: number; channel: 'whatsapp' | 'sms'; resendAfterSec: number }> {
     const phone = normaliseKenyanPhone(rawPhone ?? '');
     if (!phone) throw new BadRequestException('Enter a valid Kenyan mobile number');
     if (preferred !== undefined && preferred !== 'sms' && preferred !== 'whatsapp') throw new BadRequestException('channel must be sms or whatsapp');
+    if (ip) {
+      // One visitor address may not spray codes at many numbers (it costs money) or hammer a single one.
+      const ipHash = this.keyed('ip', ip), phoneHash = this.keyed('phone', phone), lim = this.cfg.ipLimits;
+      const u = (await this.pool.query(
+        `SELECT count(*) FILTER (WHERE created_at > now() - interval '10 minutes')::int AS recent,
+                count(DISTINCT phone_hash)::int AS phones, coalesce(bool_or(phone_hash = $2), false) AS seen
+           FROM identity.auth_ip_events WHERE ip_hash = $1 AND kind = 'otp_request' AND created_at > now() - interval '1 hour'`, [ipHash, phoneHash])).rows[0];
+      if (u.recent >= lim.otpRequestsPer10Min || (u.phones >= lim.distinctPhonesPerHour && !u.seen)) throw this.tooMany();
+      await this.pool.query(`INSERT INTO identity.auth_ip_events (ip_hash, phone_hash, kind) VALUES ($1,$2,'otp_request')`, [ipHash, phoneHash]);
+    }
     const recent = await this.pool.query(
       `SELECT count(*)::int AS n, max(created_at) AS last FROM identity.otp_challenges
         WHERE phone=$1 AND created_at > now() - interval '10 minutes'`, [phone]);
@@ -63,7 +78,21 @@ export class AuthService {
     return { expiresInSec: this.cfg.otpTtlSec, channel: sent.channel === 'whatsapp' ? 'whatsapp' : 'sms', resendAfterSec: this.cfg.resendCooldownSec };
   }
 
-  async verifyOtp(rawPhone: string, code: string, deviceId?: string): Promise<TokenPair> {
+  async verifyOtp(rawPhone: string, code: string, deviceId?: string, ip?: string | null): Promise<TokenPair> {
+    const ipHash = ip ? this.keyed('ip', ip) : null;
+    if (ipHash) {
+      const n = (await this.pool.query(`SELECT count(*)::int n FROM identity.auth_ip_events WHERE ip_hash=$1 AND kind='verify_fail' AND created_at > now() - interval '10 minutes'`, [ipHash])).rows[0].n;
+      if (n >= this.cfg.ipLimits.verifyFailsPer10Min) throw this.tooMany();
+    }
+    try { return await this.verifyInner(rawPhone, code, deviceId); }
+    catch (e) {
+      // A refused attempt counts against the address. A suspended account is not a guess, so it does not.
+      if (ipHash && e instanceof UnauthorizedException) await this.pool.query(`INSERT INTO identity.auth_ip_events (ip_hash, kind) VALUES ($1,'verify_fail')`, [ipHash]).catch(() => {});
+      throw e;
+    }
+  }
+
+  private async verifyInner(rawPhone: string, code: string, deviceId?: string): Promise<TokenPair> {
     const phone = normaliseKenyanPhone(rawPhone ?? '');
     if (!phone || typeof code !== 'string' || !/^\d{6}$/.test(code)) throw unauthorized();
     const c = await this.pool.connect();
@@ -157,10 +186,11 @@ export class AuthService {
   }
 
   /** Scheduled cleanup. Expired OTPs and long-dead refresh tokens have no value and hold personal data. */
-  async purgeExpired(): Promise<{ otp: number; refreshTokens: number }> {
+  async purgeExpired(): Promise<{ otp: number; refreshTokens: number; ipEvents: number }> {
     const otp = await this.pool.query(`DELETE FROM identity.otp_challenges WHERE created_at < now() - interval '1 day'`);
     // Only by expiry: a token that replaced another always expires later, so the replaced_by FK is never orphaned.
     const rt = await this.pool.query(`DELETE FROM identity.refresh_tokens WHERE expires_at < now() - interval '7 days'`);
-    return { otp: otp.rowCount ?? 0, refreshTokens: rt.rowCount ?? 0 };
+    const ip = await this.pool.query(`DELETE FROM identity.auth_ip_events WHERE created_at < now() - interval '1 day'`);
+    return { otp: otp.rowCount ?? 0, refreshTokens: rt.rowCount ?? 0, ipEvents: ip.rowCount ?? 0 };
   }
 }

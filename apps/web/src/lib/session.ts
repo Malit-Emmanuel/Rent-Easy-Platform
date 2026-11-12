@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { forwardIpHeaders } from './forward-ip';
 
 export const AT = 'khp_at', RT = 'khp_rt', DEV = 'khp_dev';
 const secure = () => process.env.COOKIE_SECURE !== 'false';
@@ -18,10 +19,10 @@ export function setSession(res: NextResponse, t: Tokens, deviceId: string) {
 export function clearSession(res: NextResponse) {
   for (const n of [AT, RT]) res.cookies.set(n, '', { path: '/', maxAge: 0 });
 }
-export async function callApi(path: string, init: { method?: string; body?: unknown; token?: string } = {}) {
+export async function callApi(path: string, init: { method?: string; body?: unknown; token?: string; visitorIp?: string } = {}) {
   const r = await fetch(apiUrl() + path, {
     method: init.method ?? 'GET', cache: 'no-store',
-    headers: { 'content-type': 'application/json', ...(init.token ? { authorization: `Bearer ${init.token}` } : {}) },
+    headers: { 'content-type': 'application/json', ...forwardIpHeaders(init.visitorIp), ...(init.token ? { authorization: `Bearer ${init.token}` } : {}) },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
   const text = await r.text();

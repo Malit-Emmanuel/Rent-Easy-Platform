@@ -44,3 +44,11 @@ test('allow-list holds valid numbers only, at most five; daily cap must be posit
   assert.equal(loadConfig(ok).otpDailyCap, 2000);
 });
 test('valid config', () => assert.equal(loadConfig(ok).port, 3000));
+test('per-address sign-in limits have defaults, must be positive whole numbers, and the proxy secret must be long', () => {
+  assert.deepEqual(loadConfig(ok).authIpLimits, { otpRequestsPer10Min: 20, distinctPhonesPerHour: 10, verifyFailsPer10Min: 30 });
+  assert.equal(loadConfig({ ...ok, AUTH_IP_OTP_PER_10MIN: '5' }).authIpLimits.otpRequestsPer10Min, 5);
+  for (const bad of ['0', '-1', 'x', '2.5']) assert.throws(() => loadConfig({ ...ok, AUTH_IP_VERIFY_FAILS_PER_10MIN: bad }), /AUTH_IP_VERIFY_FAILS_PER_10MIN/);
+  assert.equal(loadConfig(ok).trustedProxyKey, undefined);
+  assert.throws(() => loadConfig({ ...ok, TRUSTED_PROXY_KEY: 'short' }), /TRUSTED_PROXY_KEY/);
+  assert.equal(loadConfig({ ...ok, TRUSTED_PROXY_KEY: 'k'.repeat(32) }).trustedProxyKey, 'k'.repeat(32));
+});

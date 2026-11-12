@@ -8,6 +8,7 @@ const t = url ? test : test.skip;
 
 Object.assign(process.env, {
   JWT_SECRET: 'j'.repeat(40), OTP_PEPPER: 'p'.repeat(40), OTP_RESEND_COOLDOWN_SEC: '0', NODE_ENV: 'test',
+  AUTH_IP_OTP_PER_10MIN: '1000000', AUTH_IP_PHONES_PER_HOUR: '1000000', AUTH_IP_VERIFY_FAILS_PER_10MIN: '1000000',   // per-address limits are tested in auth.ip.http.test.ts
 });
 
 const phone = () => `+2547${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;

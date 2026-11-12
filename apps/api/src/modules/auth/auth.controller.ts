@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Inject, Post, Req } from '@nestjs/common';
+import { clientIp } from './client-ip';
 import { Public } from './auth.decorators';
 import { AuthService } from './auth.service';
 
@@ -8,12 +9,13 @@ const optStr = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 @Controller()
 export class AuthController {
   constructor(@Inject(AuthService) private auth: AuthService) {}
+  private ip(req: any) { return clientIp(req, this.auth.trustedProxyKey); }
 
   @Public() @Post('auth/otp/request') @HttpCode(200)
-  request(@Body() b: any) { return this.auth.requestOtp(str(b?.phone, 'phone'), optStr(b?.channel)); }
+  request(@Req() req: any, @Body() b: any) { return this.auth.requestOtp(str(b?.phone, 'phone'), optStr(b?.channel), this.ip(req)); }
 
   @Public() @Post('auth/otp/verify') @HttpCode(200)
-  verify(@Body() b: any) { return this.auth.verifyOtp(str(b?.phone, 'phone'), str(b?.code, 'code'), optStr(b?.deviceId)); }
+  verify(@Req() req: any, @Body() b: any) { return this.auth.verifyOtp(str(b?.phone, 'phone'), str(b?.code, 'code'), optStr(b?.deviceId), this.ip(req)); }
 
   @Public() @Post('auth/refresh') @HttpCode(200)
   refresh(@Body() b: any) { return this.auth.refresh(str(b?.refreshToken, 'refreshToken'), optStr(b?.deviceId)); }

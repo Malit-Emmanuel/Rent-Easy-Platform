@@ -1,6 +1,8 @@
 // Shared harness for HTTP integration tests. Requires a migrated Postgres at DATABASE_URL.
-export async function bootApp() {
-  Object.assign(process.env, { JWT_SECRET: 'j'.repeat(40), OTP_PEPPER: 'p'.repeat(40), OTP_RESEND_COOLDOWN_SEC: '0', NODE_ENV: 'test', APP_ENV: 'test' });
+/** `env` overrides the test defaults for this boot (the per-address sign-in limits are set very high by default because every test calls from 127.0.0.1). */
+export async function bootApp(env: Record<string, string> = {}) {
+  Object.assign(process.env, { JWT_SECRET: 'j'.repeat(40), OTP_PEPPER: 'p'.repeat(40), OTP_RESEND_COOLDOWN_SEC: '0', NODE_ENV: 'test', APP_ENV: 'test',
+    AUTH_IP_OTP_PER_10MIN: '1000000', AUTH_IP_PHONES_PER_HOUR: '1000000', AUTH_IP_VERIFY_FAILS_PER_10MIN: '1000000', ...env });
   const { NestFactory } = await import('@nestjs/core');
   const { AppModule } = await import('../app.module');
   const { SMS_PORT } = await import('../providers/ports');
