@@ -1,6 +1,8 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
+import { parseMonth, MONTH_BOUNDS } from '../../common/month';
+export { parseMonth };
 
 export const TARGET_KES = 500;
 export const PLACEHOLDER_RATE_KES = 600;
@@ -10,14 +12,7 @@ const TZ = 'Africa/Nairobi';
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 const round = (v: number | null, d = 1) => (v === null ? null : Math.round(v * 10 ** d) / 10 ** d);
 
-/** Months are Kenyan calendar months (Africa/Nairobi), written YYYY-MM. */
-export function parseMonth(m: unknown): string {
-  const s = m === undefined || m === '' ? new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 7) : m;
-  if (typeof s !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(s) || Number(s.slice(0, 4)) < 2024) throw new BadRequestException('month must look like 2026-11');
-  return s;
-}
-
-const BOUNDS = `(SELECT ($1 || '-01')::date::timestamp AT TIME ZONE '${TZ}' AS s, (($1 || '-01')::date::timestamp + interval '1 month') AT TIME ZONE '${TZ}' AS e)`;
+const BOUNDS = MONTH_BOUNDS;
 
 /**
  * Admin-only reports (S6d). They describe the process and its cost. They never rank reviewers, set pay or change a case, and every view is logged.
@@ -141,15 +136,15 @@ export class ReportsService {
                          count(*) FILTER (WHERE s.end_reason IN ('released','admin_released'))::int released
                     FROM verification.review_sessions s, m WHERE s.ended_at >= m.s AND s.ended_at < m.e GROUP BY 1),
             a AS (SELECT reviewer_id r, count(*)::int alerts FROM verification.integrity_alerts, m WHERE raised_at >= m.s AND raised_at < m.e GROUP BY 1)
-       SELECT coalesce(d.r, s.r) reviewer_id, coalesce(d.decisions,0) decisions, coalesce(d.approved,0) approved, coalesce(d.rejected,0) rejected,
+       SELECT coalesce(d.r, s.r) reviewer_id, '…' || right(u.phone, 3) AS account, coalesce(d.decisions,0) decisions, coalesce(d.approved,0) approved, coalesce(d.rejected,0) rejected,
               coalesce(s.sessions,0) sessions, coalesce(s.secs,0) secs, coalesce(s.sent_back,0) sent_back, coalesce(s.released,0) released, coalesce(a.alerts,0) alerts
-         FROM d FULL JOIN s ON s.r = d.r LEFT JOIN a ON a.r = coalesce(d.r, s.r) ORDER BY coalesce(d.r, s.r)`, [month])).rows;
+         FROM d FULL JOIN s ON s.r = d.r LEFT JOIN a ON a.r = coalesce(d.r, s.r) JOIN identity.users u ON u.id = coalesce(d.r, s.r) ORDER BY coalesce(d.r, s.r)`, [month])).rows;
     await this.logView(adminId, 'admin_report_reviewers', `month ${month}: ${rows.length} reviewers`);
     return {
       month, notRanked: true,
       note: 'Listed by account, not by performance. Approval rate with a small sample means little; the sample size is shown. No pay or ranking is derived from this report.',
       reviewers: rows.map((r) => ({
-        reviewerId: r.reviewer_id, decisions: r.decisions, approved: r.approved, rejected: r.rejected,
+        reviewerId: r.reviewer_id, account: r.account, decisions: r.decisions, approved: r.approved, rejected: r.rejected,
         approvalRatePct: r.decisions ? round(100 * r.approved / r.decisions) : null, sampleSize: r.decisions,
         sessions: r.sessions, handlingHours: round(Number(r.secs) / 3600, 2), sentBack: r.sent_back, released: r.released, alertsRaised: r.alerts,
       })),

@@ -1,6 +1,7 @@
 import { BadGatewayException, BadRequestException, ConflictException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
+import { parseMonth, MONTH_BOUNDS } from '../../common/month';
 import { STORAGE_PORT, StoragePort } from '../supply/files/storage.port';
 import { badgeExpiry, checkDecision, checkRevoke } from './cases.rules';
 import { T2_CHECKLIST, T2_REASON_CODES, T2_VIDEO_LINK_SEC, checkT2Decision, t2BadgeExpiry } from './t2.rules';
@@ -92,6 +93,27 @@ export class ReviewService {
       await c.query('COMMIT');
       return { id: caseId, status: 'submitted' };
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
+  }
+
+  /** A reviewer's own figures for a month, and nobody else's. Not a score: no pay, ranking or consequence comes from it. */
+  async myStats(reviewerId: string, monthRaw?: unknown) {
+    const month = parseMonth(monthRaw);
+    const q = (sql: string) => this.pool.query(`WITH m AS ${MONTH_BOUNDS} ${sql}`, [month, reviewerId]).then((r) => r.rows[0]);
+    const d = await q(`SELECT count(*)::int decisions, count(*) FILTER (WHERE c.status='approved')::int approved, count(*) FILTER (WHERE c.status='rejected')::int rejected,
+                              count(*) FILTER (WHERE c.tier='t1')::int t1, count(*) FILTER (WHERE c.tier='t2')::int t2
+                         FROM verification.cases c, m WHERE c.decided_by=$2 AND c.status IN ('approved','rejected') AND c.decided_at >= m.s AND c.decided_at < m.e`);
+    const s = await q(`SELECT count(*)::int sessions, coalesce(sum(s.handling_seconds),0)::bigint secs, count(*) FILTER (WHERE s.end_reason='sent_back')::int sent_back,
+                              count(*) FILTER (WHERE s.end_reason IN ('released','admin_released'))::int released
+                         FROM verification.review_sessions s, m WHERE s.reviewer_id=$2 AND s.ended_at >= m.s AND s.ended_at < m.e`);
+    const med = await q(`SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY h.secs / 60.0) med, count(*)::int n
+                           FROM (SELECT s.case_id, sum(s.handling_seconds) secs FROM verification.review_sessions s, m WHERE s.reviewer_id=$2 AND s.end_reason IN ('decided','sent_back') AND s.ended_at >= m.s AND s.ended_at < m.e GROUP BY 1) h`);
+    return {
+      month, decisions: d.decisions, approved: d.approved, rejected: d.rejected, t1: d.t1, t2: d.t2,
+      approvalRatePct: d.decisions ? Math.round(1000 * d.approved / d.decisions) / 10 : null, sampleSize: d.decisions,
+      sessions: s.sessions, handlingHours: Math.round(Number(s.secs) / 36) / 100, sentBack: s.sent_back, released: s.released,
+      medianHandlingMinutes: med.med === null ? null : Math.round(Number(med.med) * 10) / 10, medianSampleSize: med.n,
+      note: 'Only you can see this. It is not a score, and nothing is paid, ranked or decided from it.',
+    };
   }
 
   /** The case as the reviewer who holds it sees it (or, afterwards, the one who decided it). Every read is logged. */

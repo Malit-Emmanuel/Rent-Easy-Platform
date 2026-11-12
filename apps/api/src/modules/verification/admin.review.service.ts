@@ -17,11 +17,11 @@ export class AdminReviewService {
   async staleClaims(adminId: string) {
     const hours = await this.staleHours();
     const rows = (await this.pool.query(
-      `SELECT c.id, c.tier, c.claimed_by AS reviewer_id, c.claimed_at, c.due_at,
+      `SELECT '…' || right(u.phone, 3) AS account, c.id, c.tier, c.claimed_by AS reviewer_id, c.claimed_at, c.due_at,
               floor(extract(epoch FROM (now() - c.claimed_at)) / 60)::int AS held_minutes
-         FROM verification.cases c WHERE c.status='in_review' AND c.claimed_at < now() - ($1 || ' hours')::interval ORDER BY c.claimed_at ASC LIMIT 200`, [String(hours)])).rows;
+         FROM verification.cases c JOIN identity.users u ON u.id = c.claimed_by WHERE c.status='in_review' AND c.claimed_at < now() - ($1 || ' hours')::interval ORDER BY c.claimed_at ASC LIMIT 200`, [String(hours)])).rows;
     await this.pool.query(`INSERT INTO governance.data_access_log (accessor_id, resource, reason) VALUES ($1,'admin_stale_claims',$2)`, [adminId, `listed ${rows.length}`]);
-    return { thresholdHours: hours, claims: rows.map((r) => ({ id: r.id, tier: r.tier, reviewerId: r.reviewer_id, claimedAt: r.claimed_at, dueAt: r.due_at, heldMinutes: r.held_minutes, breached: new Date(r.due_at) < new Date() })) };
+    return { thresholdHours: hours, claims: rows.map((r) => ({ id: r.id, tier: r.tier, reviewerId: r.reviewer_id, account: r.account, claimedAt: r.claimed_at, dueAt: r.due_at, heldMinutes: r.held_minutes, breached: new Date(r.due_at) < new Date() })) };
   }
 
   /** Puts a stale claimed case back in the queue. Needs a written reason; only works once the claim is older than the threshold. */

@@ -23,3 +23,9 @@ test('reviewer case routes are proxied, nothing next to them is', () => {
   assert.equal(ok(['review']), false);
   assert.equal(ok(['review-other', 'cases']), false);
 });
+
+test('oversight routes are proxied, nothing next to them is', () => {
+  for (const p of [['admin', 'review', 'stale-claims'], ['admin', 'review', 'access'], ['admin', 'review', 'cases', 'x', 'release'], ['admin', 'integrity', 'alerts'], ['admin', 'integrity', 'alerts', 'x', 'handle'], ['admin', 'integrity', 'rules', 'burst'],
+    ['admin', 'reports', 'queue'], ['admin', 'reports', 'cost'], ['admin', 'reports', 'reviewers'], ['admin', 'cost-inputs'], ['review', 'cases', 'my-stats']]) assert.equal(ok(p), true, p.join('/'));
+  for (const p of [['admin', 'reviewing'], ['admin', 'integrity-x'], ['admin', 'reports-old'], ['admin', 'users'], ['admin', 'cost-inputsx']]) assert.equal(ok(p), false, p.join('/'));
+});

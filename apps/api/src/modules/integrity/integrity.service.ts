@@ -58,10 +58,10 @@ export class IntegrityService {
     if (status !== undefined && !['open', 'live', 'all'].includes(status)) throw new BadRequestException('status must be open, live or all');
     const where = status === 'all' ? 'TRUE' : status === 'live' ? `a.status IN ('open','escalated')` : `a.status = 'open'`;
     const rows = (await this.pool.query(
-      `SELECT a.id, a.rule_code, r.description, r.unit, r.threshold, a.reviewer_id, a.raised_at, a.window_from, a.window_to, a.figures, a.case_ids, a.status, a.handled_by, a.handled_at, a.handler_note
-         FROM verification.integrity_alerts a JOIN verification.integrity_rules r ON r.code = a.rule_code WHERE ${where} ORDER BY a.raised_at DESC LIMIT 200`)).rows;
+      `SELECT '…' || right(u.phone, 3) AS account, a.id, a.rule_code, r.description, r.unit, r.threshold, a.reviewer_id, a.raised_at, a.window_from, a.window_to, a.figures, a.case_ids, a.status, a.handled_by, a.handled_at, a.handler_note
+         FROM verification.integrity_alerts a JOIN verification.integrity_rules r ON r.code = a.rule_code JOIN identity.users u ON u.id = a.reviewer_id WHERE ${where} ORDER BY a.raised_at DESC LIMIT 200`)).rows;
     await this.logView(adminId, 'admin_integrity_alerts', `listed ${rows.length}`);
-    return rows.map((r) => ({ id: r.id, rule: r.rule_code, description: r.description, unit: r.unit, threshold: Number(r.threshold), reviewerId: r.reviewer_id, raisedAt: r.raised_at, windowFrom: r.window_from, windowTo: r.window_to,
+    return rows.map((r) => ({ id: r.id, rule: r.rule_code, description: r.description, unit: r.unit, threshold: Number(r.threshold), reviewerId: r.reviewer_id, account: r.account, raisedAt: r.raised_at, windowFrom: r.window_from, windowTo: r.window_to,
       figures: r.figures, caseIds: r.case_ids, status: r.status, handledAt: r.handled_at, handlerNote: r.handler_note, advisory: true }));
   }
 

@@ -9,9 +9,9 @@ import { api } from '@/lib/client';
 export default function Shell({ children }: { children: React.ReactNode }) {
   const { t, lang } = useI18n();
   const path = usePathname(), router = useRouter();
-  const [reviewer, setReviewer] = useState(false);
+  const [reviewer, setReviewer] = useState(false), [oversight, setOversight] = useState(false);
   const signedIn = path !== '/login';
-  useEffect(() => { if (signedIn) api('admin/verifications/queue').then((r) => setReviewer(r.status === 200)); }, [signedIn]);
+  useEffect(() => { if (signedIn) { api('admin/verifications/queue').then((r) => setReviewer(r.status === 200)); api('admin/review/access').then((r) => setOversight(r.status === 200)); } }, [signedIn]);
 
   const setLang = (l: string) => { document.cookie = `lang=${l}; path=/; max-age=31536000; samesite=lax`; router.refresh(); };
   const signOut = async () => { await fetch('/api/auth/logout', { method: 'POST' }); window.location.href = '/login'; };
@@ -24,6 +24,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     { href: '/verification', label: t('verification'), icon: '✓', on: path.startsWith('/verification') },
     ...(reviewer ? [{ href: '/review', label: t('rvNav'), icon: '▤', on: path.startsWith('/review') }] : []),
     ...(reviewer ? [{ href: '/admin', label: t('admin'), icon: '◎', on: path.startsWith('/admin') }] : []),
+    ...(oversight ? [{ href: '/oversight', label: t('ovNav'), icon: '◔', on: path.startsWith('/oversight') }] : []),
   ];
   const langPick = (
     <label className="lang">{t('language')}{' '}

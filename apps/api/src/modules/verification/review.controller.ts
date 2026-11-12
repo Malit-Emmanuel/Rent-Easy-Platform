@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Inject, Param, ParseUUIDPipe, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
 import { Roles } from '../../common/rbac';
 import { ReviewService } from './review.service';
 
@@ -13,6 +13,9 @@ export class ReviewController {
 
   @Get('history') @Roles('reviewer')
   history(@Req() req: any) { return this.svc.history(req.user.id); }
+
+  @Get('my-stats') @Roles('reviewer')
+  myStats(@Req() req: any, @Query('month') month?: string) { return this.svc.myStats(req.user.id, month); }
 
   @Post(':id/claim') @HttpCode(200) @Roles('reviewer')
   claim(@Req() req: any, @Param('id', uuid()) id: string) { return this.svc.claim(id, req.user.id); }
