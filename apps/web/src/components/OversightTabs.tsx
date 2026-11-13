@@ -7,7 +7,7 @@ import { monthOptions } from '@/lib/oversight';
 /** Sub-navigation for the oversight area (admins only). */
 export function OversightTabs() {
   const { t } = useI18n(); const path = usePathname();
-  const tabs = [{ href: '/oversight', label: t('ovTabOverview') }, { href: '/oversight/cost', label: t('ovTabCost') }, { href: '/oversight/reviewers', label: t('ovTabReviewers') }, { href: '/oversight/alerts', label: t('ovTabAlerts') }];
+  const tabs = [{ href: '/oversight', label: t('ovTabOverview') }, { href: '/oversight/cost', label: t('ovTabCost') }, { href: '/oversight/reviewers', label: t('ovTabReviewers') }, { href: '/oversight/alerts', label: t('ovTabAlerts') }, { href: '/oversight/privacy', label: t('drTabRequests') }];
   return (
     <nav className="tabs" aria-label={t('ovTitle')}>
       {tabs.map((x) => <Link key={x.href} href={x.href} aria-current={path === x.href ? 'page' : undefined} className={path === x.href ? 'on' : ''}>{x.label}</Link>)}

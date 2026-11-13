@@ -25,6 +25,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     ...(reviewer ? [{ href: '/review', label: t('rvNav'), icon: '▤', on: path.startsWith('/review') }] : []),
     ...(reviewer ? [{ href: '/admin', label: t('admin'), icon: '◎', on: path.startsWith('/admin') }] : []),
     ...(oversight ? [{ href: '/oversight', label: t('ovNav'), icon: '◔', on: path.startsWith('/oversight') }] : []),
+    { href: '/account', label: t('drNav'), icon: '◐', on: path.startsWith('/account') },
   ];
   const langPick = (
     <label className="lang">{t('language')}{' '}

@@ -29,3 +29,8 @@ test('oversight routes are proxied, nothing next to them is', () => {
     ['admin', 'reports', 'queue'], ['admin', 'reports', 'cost'], ['admin', 'reports', 'reviewers'], ['admin', 'cost-inputs'], ['review', 'cases', 'my-stats']]) assert.equal(ok(p), true, p.join('/'));
   for (const p of [['admin', 'reviewing'], ['admin', 'integrity-x'], ['admin', 'reports-old'], ['admin', 'users'], ['admin', 'cost-inputsx']]) assert.equal(ok(p), false, p.join('/'));
 });
+
+test('privacy routes: own data under me/, administrator handling under admin/privacy, nothing next to them', () => {
+  for (const p of [['me', 'data-export'], ['me', 'data-requests'], ['admin', 'privacy', 'requests'], ['admin', 'privacy', 'requests', 'x', 'handle']]) assert.equal(ok(p), true, p.join('/'));
+  for (const p of [['admin', 'privacyx'], ['admin', 'privacy-old', 'requests']]) assert.equal(ok(p), false, p.join('/'));
+});
