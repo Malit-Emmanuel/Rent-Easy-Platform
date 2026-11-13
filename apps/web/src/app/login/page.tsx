@@ -1,13 +1,15 @@
 'use client';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useI18n } from '@/components/I18n';
+import { LEGAL_LABELS } from '@/lib/legal';
 
 // Set NEXT_PUBLIC_HIDE_DEV_NOTICE=true on Vercel once real sign-in messages are live.
 const SHOW_DEV_NOTICE = process.env.NEXT_PUBLIC_HIDE_DEV_NOTICE !== 'true';
 
 export default function Login() {
-  const { t } = useI18n(); const router = useRouter();
+  const { t, lang } = useI18n(); const router = useRouter();
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState(''), [code, setCode] = useState('');
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [info, setInfo] = useState('');
@@ -67,6 +69,7 @@ export default function Login() {
       )}
       {error && <p className="error" role="alert">{error}</p>}
       {SHOW_DEV_NOTICE && <p className="notice">{t('devNotice')}</p>}
+      <p className="legal-links"><Link href="/privacy">{LEGAL_LABELS[lang].privacy}</Link><Link href="/terms">{LEGAL_LABELS[lang].terms}</Link></p>
     </>
   );
 }

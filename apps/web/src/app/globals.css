@@ -120,3 +120,17 @@ button.secondary { background:transparent; color:var(--fg); border:1px solid var
 .t2q input[type=radio] { width:auto; }
 .mono { font-family:var(--mono, ui-monospace, monospace); letter-spacing:.15em; }
 @media (max-width:560px) { .t2q { grid-template-columns:1fr 1fr; } .t2q > span { grid-column:1 / -1; } }
+
+/* Public legal pages (privacy notice, terms) */
+.plain.wide { max-width:820px; }
+.legal { text-align:left; }
+.legal h1 { margin:6px 0 10px; }
+.legal h2 { margin:26px 0 8px; font-size:1.1rem; }
+.legal p, .legal li { line-height:1.6; }
+.legal .draft { background:#fff4d6; border:1px solid #e0b84a; color:#5c4300; padding:10px 14px; border-radius:var(--radius-sm); }
+.legal mark.todo { background:#ffe58a; color:inherit; padding:0 3px; border-radius:3px; }
+.legal .tablewrap { overflow-x:auto; }
+.legal .crumb { text-decoration:none; }
+.legal-links { text-align:center; font-size:.9rem; margin-top:18px; }
+.legal-links a { margin:0 8px; }
+@media (prefers-color-scheme: dark) { .legal .draft { background:#3a2f0b; border-color:#8a6d1b; color:#f3dfa0; } .legal mark.todo { background:#6b5410; } }

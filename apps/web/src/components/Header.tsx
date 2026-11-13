@@ -10,7 +10,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const { t, lang } = useI18n();
   const path = usePathname(), router = useRouter();
   const [reviewer, setReviewer] = useState(false), [oversight, setOversight] = useState(false);
-  const signedIn = path !== '/login';
+  const signedIn = path !== '/login' && path !== '/privacy' && path !== '/terms';   // these pages use the plain frame and make no API calls
   useEffect(() => { if (signedIn) { api('admin/verifications/queue').then((r) => setReviewer(r.status === 200)); api('admin/review/access').then((r) => setOversight(r.status === 200)); } }, [signedIn]);
 
   const setLang = (l: string) => { document.cookie = `lang=${l}; path=/; max-age=31536000; samesite=lax`; router.refresh(); };
@@ -34,7 +34,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </select>
     </label>
   );
-  if (!signedIn) return <div className="plain"><div className="brand">Zuri Home</div>{children}<p style={{ textAlign: 'center' }}>{langPick}</p></div>;
+  if (!signedIn) return <div className={path === '/login' ? 'plain' : 'plain wide'}><div className="brand">Zuri Home</div>{children}<p style={{ textAlign: 'center' }}>{langPick}</p></div>;
   return (
     <div className="shell">
       <aside className="side">

@@ -1,12 +1,14 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Link from 'next/link';
+import { LEGAL_LABELS } from '@/lib/legal';
 import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 
 /** "My data": download everything held about the signed-in person, and ask for a correction or deletion. A person answers every request. */
 export default function MyData() {
-  const { t } = useI18n(); const word = (k: string) => (t as any)(k) as string;
+  const { t, lang } = useI18n(); const word = (k: string) => (t as any)(k) as string;
   const [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [err, setErr] = useState('');
   const [reqs, setReqs] = useState<any[] | null>(null), [kind, setKind] = useState<'correction' | 'deletion'>('correction'), [details, setDetails] = useState('');
   const load = useCallback(async () => { const r = await api('me/data-requests'); setReqs(r.status === 200 ? (r.data as any[]) : []); }, []);
@@ -63,6 +65,7 @@ export default function MyData() {
           {r.resolutionNote && <p><strong>{t('drAnswer')}:</strong> {r.resolutionNote}</p>}
         </article>
       ))}
+      <p className="legal-links"><Link href="/privacy">{LEGAL_LABELS[lang].privacy}</Link><Link href="/terms">{LEGAL_LABELS[lang].terms}</Link></p>
     </>
   );
 }
