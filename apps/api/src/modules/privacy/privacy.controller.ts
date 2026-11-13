@@ -15,6 +15,12 @@ export class PrivacyController {
   @Post('me/data-requests') @HttpCode(201)
   file(@Req() req: any, @Body() body: any) { return this.svc.file(req.user.id, body ?? {}); }
 
+  @Get('me/policies')
+  policies(@Req() req: any) { return this.svc.policies(req.user.id); }
+
+  @Post('me/policies/accept') @HttpCode(200)
+  accept(@Req() req: any, @Body() body: any) { return this.svc.accept(req.user.id, body ?? {}); }
+
   @Get('admin/privacy/requests') @Roles('super_admin')
   list(@Req() req: any, @Query('status') status?: string) { return this.svc.list(req.user.id, status); }
 

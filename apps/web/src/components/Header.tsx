@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useI18n } from './I18n';
 import { api } from '@/lib/client';
+import PolicyBanner from './PolicyBanner';
 
 /** The whole app frame: side menu on wide screens, bottom bar on phones. The sign-in page gets a plain frame. */
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -46,6 +47,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </aside>
       <div className="content">
         <div className="topbar"><span className="brand">Zuri Home</span><span className="spacer" />{langPick}<button className="link" onClick={signOut}>{t('signOut')}</button></div>
+        <PolicyBanner />
         <main>{children}</main>
       </div>
     </div>

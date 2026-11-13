@@ -4,6 +4,11 @@ import { AuditService, PG_POOL } from '../audit/audit.service';
 
 const KINDS = ['correction', 'deletion'];
 const MAX_EXPORTS_PER_HOUR = 5;
+const DOCS = ['privacy', 'terms'] as const;
+type Doc = (typeof DOCS)[number];
+const VERSION_RE = /^[A-Za-z0-9._-]{1,40}$/;
+/** The version in force for a document, set by the operator once the lawyer approves the text. Unset means nothing is required. Read on each call so a change needs no restart. */
+const currentVersion = (doc: Doc): string | undefined => { const v = (process.env[doc === 'privacy' ? 'POLICY_PRIVACY_VERSION' : 'POLICY_TERMS_VERSION'] ?? '').trim(); return VERSION_RE.test(v) ? v : undefined; };
 
 /**
  * People's rights over their own data. This slice only reads (the export) and records (requests).
@@ -40,6 +45,7 @@ export class PrivacyService {
       reviewWork: await q(`SELECT case_id AS "caseId", claimed_at AS "startedAt", ended_at AS "endedAt", end_reason AS "endedHow", handling_seconds AS "countedSeconds" FROM verification.review_sessions WHERE reviewer_id=$1 ORDER BY claimed_at`),
       activity: await q(`SELECT action, occurred_at AS "at" FROM governance.audit_events WHERE actor_id=$1 ORDER BY occurred_at DESC LIMIT 500`),
       requests: await this.mine(userId),
+      policyAcceptances: await q(`SELECT doc, version, lang, accepted_at AS "acceptedAt" FROM governance.policy_acceptances WHERE user_id=$1 ORDER BY accepted_at`),
       notIncluded: [
         'Sign-in codes and session tokens (kept only as one-way scrambled values that cannot be turned back into the original).',
         'Sign-in address checks (kept only as scrambled values and deleted after one day).',
@@ -51,6 +57,30 @@ export class PrivacyService {
     };
     await this.audit.record({ actorId: userId, action: 'privacy.export_downloaded', subjectType: 'user', subjectId: userId });   // no contents in the record
     return data;
+  }
+
+  /** Which documents are in force, and whether this person has accepted the current version of each. Nothing is listed until a version is set. */
+  async policies(userId: string) {
+    const items: { doc: Doc; version: string; accepted: boolean; acceptedAt: string | null }[] = [];
+    for (const doc of DOCS) {
+      const version = currentVersion(doc); if (!version) continue;
+      const a = (await this.pool.query(`SELECT accepted_at FROM governance.policy_acceptances WHERE user_id=$1 AND doc=$2 AND version=$3`, [userId, doc, version])).rows[0];
+      items.push({ doc, version, accepted: !!a, acceptedAt: a ? new Date(a.accepted_at).toISOString() : null });
+    }
+    return { required: items.some((i) => !i.accepted), items };
+  }
+
+  /** Record acceptance of the current version. Accepting twice changes nothing. An old or unknown version is refused, so the record can never claim text that was not in force. */
+  async accept(userId: string, body: any) {
+    const doc = body?.doc as Doc, version = String(body?.version ?? ''), lang = body?.lang;
+    if (!DOCS.includes(doc)) throw new BadRequestException('Choose the privacy notice or the terms');
+    if (!['en', 'sw'].includes(lang)) throw new BadRequestException('Language must be en or sw');
+    const cur = currentVersion(doc);
+    if (!cur) throw new ConflictException('This document is not in force yet');
+    if (version !== cur) throw new ConflictException('This is not the current version. Reload the page and read it again.');
+    const r = await this.pool.query(`INSERT INTO governance.policy_acceptances (user_id, doc, version, lang) VALUES ($1,$2,$3,$4) ON CONFLICT (user_id, doc, version) DO NOTHING RETURNING id`, [userId, doc, version, lang]);
+    if (r.rowCount) await this.audit.record({ actorId: userId, action: 'policy.accepted', subjectType: 'user', subjectId: userId, metadata: { doc, version } });
+    return this.policies(userId);
   }
 
   async mine(userId: string) {
