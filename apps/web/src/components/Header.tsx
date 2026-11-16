@@ -35,18 +35,18 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </select>
     </label>
   );
-  if (!signedIn) return <div className={path === '/login' ? 'plain' : 'plain wide'}><div className="brand">Zuri Home</div>{children}<p style={{ textAlign: 'center' }}>{langPick}</p></div>;
+  if (!signedIn) return <div className={path === '/login' ? 'plain' : 'plain wide'}><div className="brand"><span className="logo" aria-hidden>Z</span><span>Zuri Home<small>{t('appTagline')}</small></span></div>{children}<p style={{ textAlign: 'center' }}>{langPick}</p></div>;
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand">Zuri Home<small>{t('appTagline')}</small></div>
+        <div className="brand"><span className="logo" aria-hidden>Z</span><span>Zuri Home<small>{t('appTagline')}</small></span></div>
         <nav className="nav" aria-label="Main">
           {items.map((i) => <Link key={i.href} href={i.href} aria-current={i.on ? 'page' : undefined}><span className="ic" aria-hidden>{i.icon}</span>{i.label}</Link>)}
         </nav>
         <div className="foot">{langPick}<button className="link" onClick={signOut}>{t('signOut')}</button></div>
       </aside>
       <div className="content">
-        <div className="topbar"><span className="brand">Zuri Home</span><span className="spacer" />{langPick}<button className="link" onClick={signOut}>{t('signOut')}</button></div>
+        <div className="topbar"><span className="brand"><span className="logo" aria-hidden>Z</span>Zuri Home</span><span className="spacer" />{langPick}<button className="link" onClick={signOut}>{t('signOut')}</button></div>
         <PolicyBanner />
         <main>{children}</main>
       </div>

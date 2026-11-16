@@ -47,7 +47,7 @@ export default function Login() {
     if (r.status === 200) { router.replace('/'); router.refresh(); } else setError(r.status === 401 ? t('badCode') : r.status === 429 ? t('tooMany') : t('genericError'));
   }
   return (
-    <>
+    <div className="authcard">
       <h1>{t('signIn')}</h1>
       {step === 'phone' ? (
         <form onSubmit={sendCode}>
@@ -70,6 +70,6 @@ export default function Login() {
       {error && <p className="error" role="alert">{error}</p>}
       {SHOW_DEV_NOTICE && <p className="notice">{t('devNotice')}</p>}
       <p className="legal-links"><Link href="/privacy">{LEGAL_LABELS[lang].privacy}</Link><Link href="/terms">{LEGAL_LABELS[lang].terms}</Link></p>
-    </>
+    </div>
   );
 }
