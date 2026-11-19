@@ -3,10 +3,27 @@
 Trusted transaction infrastructure for housing in Kenya. Spine: Discover, Verify, View, Apply, Sign, Pay, Record.
 Source of truth: *Development Execution Plan v1.0* (28 Sep 2026). Scope guard: `docs/NOT_IN_V1.md`.
 
-## Status: Milestone M0 (Foundations), in progress
-Done and verified: schema applied to Postgres+PostGIS and rule-tested (db/tests/rules.sql), migration runner, config validation, event bus, consent logic, RBAC guard, audit service, provider ports, money helper. See docs/adr for recorded decisions.
-provider ports and fake adapters, money helpers (tested).
-Done: B1 foundations and most of B2 (OTP login, rotating sessions, organisations, staff invitations, profile, vendor-neutral ID-verification layer with fake adapter, background job queue). 55 tests. Next: Next.js dashboard shell, admin shell, then B3 (see build plan).
+## Status (November 2026): running on staging, test data only
+The API runs on Railway, the database on Supabase and the dashboard on Vercel. Slices S1 to S13 are built, tested and deployed. No real tenant data, ID checks or property videos are processed yet (see "Before real data" below).
+
+| Slice | What it delivers | Notes |
+|---|---|---|
+| Foundations | Postgres + PostGIS schema, migration runner, config validation, event bus, consent logic, RBAC guard, hash-chained audit log, double-entry ledger, provider ports, money helpers | ADRs 0001 to 0010 |
+| Sign-in and organisations | Phone sign-in codes, rotating sessions, organisations, staff invitations, profile, vendor-neutral ID-verification layer, BullMQ background jobs | |
+| S1 to S3 | Properties and units, file storage, bulk CSV import (apartment-first unit names, optional floors) | ADRs 0011, 0012 |
+| S4 | Property verification requests, reviewer queue and claims, case page, decisions, revoke and renewal, T1 badge | [Acceptance report](docs/S4_Acceptance_Report.md) |
+| S4.5 | Sign-in codes by WhatsApp first, SMS fallback, with per-number limits and a daily cap on paid messages | [Note](docs/S4_5_Sign-in_Codes.md) |
+| S5 | T2 badge: video and location verification, reviewer evidence panel, badge lifecycle and video retention | Built but switched off (`T2_ENABLED`). [Acceptance report](docs/S5f_Acceptance_Report.md) |
+| S6 | Reviewer integrity: review time record, integrity rules engine with daily scan and alerts, stale-claim release, cost and reviewer reports, oversight screens | [Acceptance report](docs/S6f_Acceptance_Report.md) |
+| S7 | Per-internet-address limits on sign-in | [Note](docs/S7_Sign-in_Address_Limits.md) |
+| S8 | "My data": access, correction and deletion requests (recorded, never auto-deleted) | [Note](docs/S8_My_Data.md) |
+| S9 to S11 | Draft privacy notice and terms (English and Swahili), audited platform-role grants, policy acceptance recording | |
+| S12 to S13 | Visual refresh, brand mark, public home page, installable web app | |
+
+Tests: 20 database migrations with SQL rule tests (`db/tests`), plus about 180 automated API and web tests across 62 test files. CI runs on every push (`.github/workflows/ci.yml`).
+
+### Before real data
+Per [ADR-0005](docs/adr/0005-legal-gate.md), no payment, ID-check, data-processing or property agreement is signed until the company is registered and an advocate has reviewed the [data protection pack](docs/Advocate_Pack_Data_Protection.md). Real property videos stay off (`T2_ENABLED=false`) until legal clearance. Scope guard: [`docs/NOT_IN_V1.md`](docs/NOT_IN_V1.md).
 
 ## Run
     docker compose up -d          # starts Postgres+PostGIS and Redis
