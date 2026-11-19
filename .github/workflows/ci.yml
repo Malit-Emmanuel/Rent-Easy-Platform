@@ -31,8 +31,9 @@ jobs:
       - name: Match Supabase extension layout
         run: psql "$DATABASE_URL" -c "DROP EXTENSION IF EXISTS postgis_tiger_geocoder, postgis_topology, fuzzystrmatch, postgis CASCADE;"
       - run: npm run migrate
-      # Same as "npm test", but the file list is expanded by the shell: Node 20 (the version the
-      # API runs on in production) does not expand "src/**/*.test.ts" itself.
+      # Same as "npm test", but the file list is expanded by the shell (Node 20, the version the
+      # API runs on in production, does not expand "src/**/*.test.ts" itself), and files run one at
+      # a time because they share one database and several check the whole audit chain.
       - name: Run tests (includes DB and HTTP integration tests)
-        run: npx tsx --test $(find src -name '*.test.ts' | sort)
+        run: npx tsx --test --test-concurrency=1 $(find src -name '*.test.ts' | sort)
       - run: npm audit --audit-level=high
