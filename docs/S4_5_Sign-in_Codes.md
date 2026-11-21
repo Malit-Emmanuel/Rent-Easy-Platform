@@ -17,11 +17,11 @@
 
 ## Your side (needed before real users)
 1. Register the company.
-2. Pick the sender name (up to 11 characters, matching the company name, e.g. ZURIHOME).
+2. Pick the sender name (up to 11 characters, matching the company name, e.g. EDUPATO).
 3. Open an Africa's Talking account; ask about the transactional sender-ID fee and turnaround, and whether they offer WhatsApp.
 4. Create a Meta Business account and complete business verification (needs the company documents).
 5. Get a phone number for WhatsApp that is not on a personal WhatsApp account.
-6. Create and submit the WhatsApp authentication template named `zuri_login_code` (language en) for approval.
+6. Create and submit the WhatsApp authentication template named `edupato_login_code` (language en) for approval.
 7. Send me the sandbox keys (never in chat: set them as Railway variables yourself) and I will test against the sandbox.
 8. At launch: set `AT_ENV=live`, the live keys, `AT_SENDER_ID`, `NEXT_PUBLIC_HIDE_DEV_NOTICE=true` on Vercel, and remove test numbers from `DEV_OTP_ALLOWLIST`.
 

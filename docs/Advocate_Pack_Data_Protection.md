@@ -1,4 +1,4 @@
-# Advocate Pack: Data Protection for Zuri Home (Kenya Housing Connection Platform)
+# Advocate Pack: Data Protection for Edupato Homes (Kenya Housing Connection Platform)
 
 **Purpose.** This is a plain-language description of what the platform collects, why, where it goes and how long it stays, with the questions we need the advocate to answer before any real property video or real ID check goes live. It is a draft for legal review. It is **not** legal advice, and the references to the Data Protection Act, 2019 are our understanding, to be confirmed.
 
@@ -7,7 +7,7 @@
 ## 1. Who is who (to be confirmed)
 | Role | Our understanding | To confirm |
 |---|---|---|
-| Data controller | The company that will own Zuri Home (not yet registered) | Company name, registration, ODPC registration as controller |
+| Data controller | The company that will own Edupato Homes (not yet registered) | Company name, registration, ODPC registration as controller |
 | Data processors | Hosting and service providers (section 4) | Written processing contracts with each |
 | Data subjects | Managers, landlords and agents; property owners named in documents; anyone accidentally filmed | Whether tenants and buyers are in scope later |
 
@@ -50,7 +50,6 @@ Every database table has row-level security switched on with no public access; t
 | Raw T2 video | **90 days after the case is decided** (one setting in the database) | The deletion job is **built** (S5e) and runs once a day: it removes the stored video and marks the file deleted. The case, the two location readings, the reviewer checklist, the decision and the video's fingerprint (a hash, not the video) are kept. A video under an open appeal is not deleted until the appeal is decided. Please advise on the right period, and on whether the fingerprint may be kept longer |
 | Recordings that were never submitted | **About 24 hours after the code expired** (the daily job). Earlier takes in a session are discarded when a retake is made | Confirm |
 | Cases left at "record again" that the manager never answers | **Not yet decided**: the video currently stays until a decision is made | Please advise on an end date |
-| Property documents (T1) | No end date is set yet | Please advise |
 | T1 documents | Kept while the case and badge are active | No end date set. Please advise |
 | Location readings, fingerprint, computed notes, checklist | Kept with the case record | Please advise; readings are location data |
 | Audit trail and access log | Append-only, kept | Contains identifiers, no coordinates or codes. Please advise on period |

@@ -7,7 +7,7 @@ Web only. No change to the API, the database, sign-in or any data.
 - **Public home page** (`/welcome`): visitors who are not signed in and open zurihome.app are sent here instead of the sign-in page. Signed-in people still land on their dashboard. It explains how it works, who it is for, and our promises. It says plainly that tenant and buyer features are not ready yet, and shows "being tested, not open to the public yet" until `NEXT_PUBLIC_LEGAL_PUBLISHED=true`.
 - **"What does Verified mean?"** (`/verified`): what we check, what a badge means, what it does not mean (not a guarantee of ownership, price or condition), and what happens if something is wrong. States that the video check is switched off today.
 - **Public frame**: these two pages and the privacy notice and terms now share one header (logo, language, Sign in) and footer (links).
-- **Installable web app**: a manifest and icons let people add Zuri Home to the phone home screen. Nothing is stored for offline use.
+- **Installable web app**: a manifest and icons let people add Edupato Homes to the phone home screen. Nothing is stored for offline use.
 - **Contrast fixes**: two small texts were slightly below the accessible contrast and were darkened. All other main colour pairs pass 4.5 to 1.
 
 ## Rules built into the text

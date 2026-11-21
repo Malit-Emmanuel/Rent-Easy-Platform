@@ -14,7 +14,7 @@ export const SITE: Record<SiteName, Record<Lang, SiteDoc>> = {
   welcome: {
     en: {
       title: 'Rentals you can trust',
-      lead: 'Zuri Home helps landlords, agents and property managers show that their properties are real, so that people can look for a home with less worry.',
+      lead: 'Edupato Homes helps landlords, agents and property managers show that their properties are real, so that people can look for a home with less worry.',
       cta: 'Sign in', ctaMore: 'What does "Verified" mean?',
       sections: [
         { h: 'How it works', items: [
@@ -37,7 +37,7 @@ export const SITE: Record<SiteName, Record<Lang, SiteDoc>> = {
     },
     sw: {
       title: 'Nyumba za kupanga unazoweza kuziamini',
-      lead: 'Zuri Home huwasaidia wenye nyumba, mawakala na wasimamizi wa mali kuonyesha kwamba mali zao ni halisi, ili watu watafute makazi bila wasiwasi mwingi.',
+      lead: 'Edupato Homes huwasaidia wenye nyumba, mawakala na wasimamizi wa mali kuonyesha kwamba mali zao ni halisi, ili watu watafute makazi bila wasiwasi mwingi.',
       cta: 'Ingia', ctaMore: '"Imethibitishwa" ina maana gani?',
       sections: [
         { h: 'Inavyofanya kazi', items: [
@@ -62,7 +62,7 @@ export const SITE: Record<SiteName, Record<Lang, SiteDoc>> = {
   verified: {
     en: {
       title: 'What does "Verified" mean?',
-      lead: 'A Verified badge means a person at Zuri Home checked the documents we received for a property and found them in order. Here is exactly what that does and does not mean.',
+      lead: 'A Verified badge means a person at Edupato Homes checked the documents we received for a property and found them in order. Here is exactly what that does and does not mean.',
       cta: 'Sign in', ctaMore: 'Back to home',
       sections: [
         { h: 'What we check', items: [
@@ -89,7 +89,7 @@ export const SITE: Record<SiteName, Record<Lang, SiteDoc>> = {
     },
     sw: {
       title: '"Imethibitishwa" ina maana gani?',
-      lead: 'Alama ya Imethibitishwa ina maana mtu wa Zuri Home alikagua nyaraka tulizopokea kuhusu mali na kuziona ziko sawa. Hapa kuna maelezo kamili ya inachomaanisha na isichomaanisha.',
+      lead: 'Alama ya Imethibitishwa ina maana mtu wa Edupato Homes alikagua nyaraka tulizopokea kuhusu mali na kuziona ziko sawa. Hapa kuna maelezo kamili ya inachomaanisha na isichomaanisha.',
       cta: 'Ingia', ctaMore: 'Rudi mwanzo',
       sections: [
         { h: 'Tunachokagua', items: [
@@ -118,6 +118,6 @@ export const SITE: Record<SiteName, Record<Lang, SiteDoc>> = {
 };
 
 export const SITE_LABELS: Record<Lang, { testing: string; privacy: string; terms: string; verified: string; home: string; footer: string }> = {
-  en: { testing: 'Zuri Home is being tested and is not open to the public yet.', privacy: 'Privacy notice', terms: 'Terms of use', verified: 'What does "Verified" mean?', home: 'Home', footer: 'Verified rentals' },
-  sw: { testing: 'Zuri Home iko kwenye majaribio na bado haijafunguliwa kwa umma.', privacy: 'Taarifa ya faragha', terms: 'Masharti ya matumizi', verified: '"Imethibitishwa" ina maana gani?', home: 'Mwanzo', footer: 'Nyumba zilizothibitishwa' },
+  en: { testing: 'Edupato Homes is being tested and is not open to the public yet.', privacy: 'Privacy notice', terms: 'Terms of use', verified: 'What does "Verified" mean?', home: 'Home', footer: 'Verified rentals' },
+  sw: { testing: 'Edupato Homes iko kwenye majaribio na bado haijafunguliwa kwa umma.', privacy: 'Taarifa ya faragha', terms: 'Masharti ya matumizi', verified: '"Imethibitishwa" ina maana gani?', home: 'Mwanzo', footer: 'Nyumba zilizothibitishwa' },
 };

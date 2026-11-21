@@ -20,7 +20,7 @@ dbTest('sign-in code requests: channel choice, delivery record, audit without th
     const a = await h.pool.query(`SELECT metadata, subject_id FROM governance.audit_events WHERE action='auth.otp_requested' ORDER BY occurred_at DESC LIMIT 1`);
     assert.deepEqual(a.rows[0].metadata, { channel: 'sms', fellBack: false });
     assert.ok(!JSON.stringify(a.rows[0]).includes(p.slice(-8)));
-    assert.match(h.lastMsg(p), /Your Zuri Home code is \d{6}\. It expires in 5 minutes/);
+    assert.match(h.lastMsg(p), /Your Edupato Homes code is \d{6}\. It expires in 5 minutes/);
   } finally { await h.close(); }
 });
 

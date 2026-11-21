@@ -23,14 +23,14 @@ const ok = (code = 101) => ({ json: { SMSMessageData: { Message: 'Sent', Recipie
 test("Africa's Talking: sends the documented request and returns the message id", async () => {
   const m = await mock(() => ok());
   try {
-    const sms = new AfricasTalkingSms({ username: 'zuri', apiKey: 'secret-key', senderId: 'ZURIHOME', baseUrl: m.baseUrl });
+    const sms = new AfricasTalkingSms({ username: 'edupato', apiKey: 'secret-key', senderId: 'EDUPATO', baseUrl: m.baseUrl });
     const r = await sms.send('+254712345678', 'hello');
     assert.equal(r.providerMessageId, 'ATXid_1');
     const q = m.seen[0];
     assert.equal(q.url, '/version1/messaging');
     assert.equal(q.headers.apikey, 'secret-key');
-    assert.equal(q.form.get('username'), 'zuri'); assert.equal(q.form.get('to'), '+254712345678');
-    assert.equal(q.form.get('message'), 'hello'); assert.equal(q.form.get('from'), 'ZURIHOME');
+    assert.equal(q.form.get('username'), 'edupato'); assert.equal(q.form.get('to'), '+254712345678');
+    assert.equal(q.form.get('message'), 'hello'); assert.equal(q.form.get('from'), 'EDUPATO');
   } finally { m.close(); }
 });
 

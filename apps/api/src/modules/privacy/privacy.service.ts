@@ -27,7 +27,7 @@ export class PrivacyService {
     if (!profile) throw new NotFoundException('Account not found');
     const data = {
       generatedAt: new Date().toISOString(),
-      about: 'This is the personal data Zuri Home holds about you. It lists what is recorded, not the files themselves.',
+      about: 'This is the personal data Edupato Homes holds about you. It lists what is recorded, not the files themselves.',
       profile,
       roles: (await q(`SELECT role FROM identity.platform_roles WHERE user_id=$1 ORDER BY role`)).map((r) => r.role),
       organisations: await q(`SELECT o.name, o.kind, m.role, m.created_at AS "joinedAt" FROM identity.memberships m JOIN identity.organizations o ON o.id = m.org_id WHERE m.user_id=$1 ORDER BY m.created_at`),

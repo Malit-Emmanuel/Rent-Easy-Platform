@@ -17,7 +17,7 @@ async function mock(reply: { status?: number; json?: unknown; hang?: boolean }) 
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   return { apiBase: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, seen, close: () => { server.closeAllConnections(); server.close(); } };
 }
-const cfg = (apiBase: string) => ({ phoneNumberId: '1055', accessToken: 'tok-secret', template: 'zuri_login_code', language: 'en', apiBase, apiVersion: 'v23.0' });
+const cfg = (apiBase: string) => ({ phoneNumberId: '1055', accessToken: 'tok-secret', template: 'edupato_login_code', language: 'en', apiBase, apiVersion: 'v23.0' });
 
 test('WhatsApp: sends the authentication template with the code in the body and the copy-code button', async () => {
   const m = await mock({ json: { messages: [{ id: 'wamid.ABC' }] } });
@@ -28,7 +28,7 @@ test('WhatsApp: sends the authentication template with the code in the body and 
     assert.equal(q.url, '/v23.0/1055/messages');
     assert.equal(q.headers.authorization, 'Bearer tok-secret');
     assert.equal(q.body.messaging_product, 'whatsapp'); assert.equal(q.body.to, '254712345678'); assert.equal(q.body.type, 'template');
-    assert.equal(q.body.template.name, 'zuri_login_code'); assert.equal(q.body.template.language.code, 'en');
+    assert.equal(q.body.template.name, 'edupato_login_code'); assert.equal(q.body.template.language.code, 'en');
     const [body, button] = q.body.template.components;
     assert.equal(body.type, 'body'); assert.equal(body.parameters[0].text, '482913');
     assert.equal(button.type, 'button'); assert.equal(button.sub_type, 'url'); assert.equal(button.index, '0'); assert.equal(button.parameters[0].text, '482913');

@@ -52,4 +52,4 @@ Figures cover work recorded since S6b. The reviewer rate is a KES 600 placeholde
 
 ## Open items for you
 
-Register the company; follow up with the lawyer (briefing, data protection pack, four retention questions, and what reviewers must be told about measurement); shortlist ID providers; open Africa's Talking; start Meta business verification and the `zuri_login_code` template; set keys as Railway variables yourself; keep `T2_ENABLED` off; find a second and third real reviewer; enter the real hourly rate; have the Swahili reviewed; choose the account to receive `super_admin` when ready.
+Register the company; follow up with the lawyer (briefing, data protection pack, four retention questions, and what reviewers must be told about measurement); shortlist ID providers; open Africa's Talking; start Meta business verification and the `edupato_login_code` template; set keys as Railway variables yourself; keep `T2_ENABLED` off; find a second and third real reviewer; enter the real hourly rate; have the Swahili reviewed; choose the account to receive `super_admin` when ready.

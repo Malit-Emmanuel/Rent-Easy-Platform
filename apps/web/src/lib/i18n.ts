@@ -4,7 +4,7 @@ export const LANGS: Lang[] = ['en', 'sw'];
 // Swahili strings need review by a native speaker before the pilot.
 export const dict = {
   en: {
-    appName: 'Zuri Home', appTagline: 'Verified rentals', importNav: 'Import', bedsitter: 'Bedsitter / studio', overview: 'Overview', yourOrgs: 'Your organisations', totalProperties: 'Properties', totalUnits: 'Units', nextStep: 'Next step', nextImport: 'Add your properties and units', nextImportHint: 'Import a spreadsheet, or add them one by one.', search: 'Search properties', allAreas: 'All areas', noMatches: 'No properties match your search.', devNotice: 'Test mode: sign-in codes are not sent by SMS yet. They appear in the server log.', unverifiedTag: 'Not yet verified', signIn: 'Sign in', signOut: 'Sign out', language: 'Language',
+    appName: 'Edupato Homes', appTagline: 'Verified rentals', importNav: 'Import', bedsitter: 'Bedsitter / studio', overview: 'Overview', yourOrgs: 'Your organisations', totalProperties: 'Properties', totalUnits: 'Units', nextStep: 'Next step', nextImport: 'Add your properties and units', nextImportHint: 'Import a spreadsheet, or add them one by one.', search: 'Search properties', allAreas: 'All areas', noMatches: 'No properties match your search.', devNotice: 'Test mode: sign-in codes are not sent by SMS yet. They appear in the server log.', unverifiedTag: 'Not yet verified', signIn: 'Sign in', signOut: 'Sign out', language: 'Language',
     phoneLabel: 'Mobile number', phoneHint: 'e.g. 0712 345 678', sendCode: 'Send code', codeLabel: '6-digit code',
     verify: 'Verify', back: 'Back', codeSent: 'We sent a code by SMS. It expires in 5 minutes.',
     badPhone: 'Enter a valid Kenyan mobile number.', badCode: 'That code is wrong or expired.', tooMany: 'Too many attempts. Try again later.',
@@ -165,10 +165,10 @@ export const dict = {
     ovNav: 'Oversight',
     drNav: 'My data',
     drTitle: 'My data',
-    paBanner: 'Please read our privacy notice and terms of use, then accept them to continue using Zuri Home with us.',
+    paBanner: 'Please read our privacy notice and terms of use, then accept them to continue using Edupato Homes with us.',
     paAccept: 'I have read and accept',
     paFailed: 'We could not save this. Please reload the page and try again.',
-    drIntro: 'You can see what Zuri Home holds about you, and ask us to correct or delete it. A person reads every request.',
+    drIntro: 'You can see what Edupato Homes holds about you, and ask us to correct or delete it. A person reads every request.',
     drDownloadH: 'Download my data',
     drDownloadHint: 'A file with your account details, your uploads, your verification cases and your activity. It does not include other people\'s information.',
     drDownload: 'Download',
@@ -369,7 +369,7 @@ export const dict = {
     rvStatsEmpty: 'No decisions this month.',
   },
   sw: {
-    appName: 'Zuri Home', appTagline: 'Nyumba zilizothibitishwa', importNav: 'Leta', bedsitter: 'Bedsitter / studio', overview: 'Muhtasari', yourOrgs: 'Mashirika yako', totalProperties: 'Mali', totalUnits: 'Vyumba', nextStep: 'Hatua inayofuata', nextImport: 'Ongeza mali na vyumba vyako', nextImportHint: 'Leta lahajedwali, au ongeza moja moja.', search: 'Tafuta mali', allAreas: 'Maeneo yote', noMatches: 'Hakuna mali zinazolingana.', devNotice: 'Hali ya majaribio: nambari za kuingia hazitumwi kwa SMS bado. Zinaonekana kwenye kumbukumbu za seva.', unverifiedTag: 'Haijathibitishwa', signIn: 'Ingia', signOut: 'Toka', language: 'Lugha',
+    appName: 'Edupato Homes', appTagline: 'Nyumba zilizothibitishwa', importNav: 'Leta', bedsitter: 'Bedsitter / studio', overview: 'Muhtasari', yourOrgs: 'Mashirika yako', totalProperties: 'Mali', totalUnits: 'Vyumba', nextStep: 'Hatua inayofuata', nextImport: 'Ongeza mali na vyumba vyako', nextImportHint: 'Leta lahajedwali, au ongeza moja moja.', search: 'Tafuta mali', allAreas: 'Maeneo yote', noMatches: 'Hakuna mali zinazolingana.', devNotice: 'Hali ya majaribio: nambari za kuingia hazitumwi kwa SMS bado. Zinaonekana kwenye kumbukumbu za seva.', unverifiedTag: 'Haijathibitishwa', signIn: 'Ingia', signOut: 'Toka', language: 'Lugha',
     phoneLabel: 'Namba ya simu', phoneHint: 'mf. 0712 345 678', sendCode: 'Tuma msimbo', codeLabel: 'Msimbo wa tarakimu 6',
     verify: 'Thibitisha', back: 'Rudi', codeSent: 'Tumekutumia msimbo kwa SMS. Utaisha baada ya dakika 5.',
     badPhone: 'Weka namba sahihi ya simu ya Kenya.', badCode: 'Msimbo huo si sahihi au umeisha muda.', tooMany: 'Majaribio mengi mno. Jaribu tena baadaye.',
@@ -530,10 +530,10 @@ export const dict = {
     ovNav: 'Usimamizi',
     drNav: 'Data yangu',
     drTitle: 'Data yangu',
-    paBanner: 'Tafadhali soma taarifa yetu ya faragha na masharti ya matumizi, kisha ukubali ili uendelee kutumia Zuri Home.',
+    paBanner: 'Tafadhali soma taarifa yetu ya faragha na masharti ya matumizi, kisha ukubali ili uendelee kutumia Edupato Homes.',
     paAccept: 'Nimesoma na ninakubali',
     paFailed: 'Hatukuweza kuhifadhi hili. Tafadhali pakia ukurasa upya na ujaribu tena.',
-    drIntro: 'Unaweza kuona taarifa ambazo Zuri Home ina kukuhusu, na kutuomba tuzirekebishe au tuzifute. Mtu husoma kila ombi.',
+    drIntro: 'Unaweza kuona taarifa ambazo Edupato Homes ina kukuhusu, na kutuomba tuzirekebishe au tuzifute. Mtu husoma kila ombi.',
     drDownloadH: 'Pakua data yangu',
     drDownloadHint: 'Faili lenye taarifa za akaunti yako, ulichopakia, kesi zako za uthibitishaji na shughuli zako. Haina taarifa za watu wengine.',
     drDownload: 'Pakua',

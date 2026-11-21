@@ -4,7 +4,7 @@ import { OtpChannel, SmsPort } from './ports';
 
 /** The code as a plain text message, for SMS. */
 export function otpText(code: string, ttlMinutes: number): string {
-  return `Your Zuri Home code is ${code}. It expires in ${ttlMinutes} minutes. Do not share it.`;
+  return `Your Edupato Homes code is ${code}. It expires in ${ttlMinutes} minutes. Do not share it.`;
 }
 
 /** Sends the code as an ordinary SMS through whichever SmsPort is configured. */

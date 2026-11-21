@@ -8,6 +8,9 @@ import { api } from '@/lib/client';
 import PolicyBanner from './PolicyBanner';
 import Logo from './Logo';
 
+/** EDUPATO in the logo's red, with HOMES spaced out beneath it, echoing the company logo's own lock-up. */
+function Wordmark() { return <span className="wm" role="text" aria-label="Edupato Homes"><b>EDUPATO</b><i>HOMES</i></span>; }
+
 /** The whole app frame: side menu on wide screens, bottom bar on phones. The sign-in page gets a plain frame. */
 export default function Shell({ children }: { children: React.ReactNode }) {
   const { t, lang } = useI18n();
@@ -42,24 +45,24 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     const L = SITE_LABELS[lang];
     return (
       <div className="site">
-        <header className="sitebar"><Link href="/" className="brand"><Logo />Zuri Home</Link><span className="spacer" />{langPick}<Link className="btn small" href="/login">{t('signIn')}</Link></header>
+        <header className="sitebar"><Link href="/" className="brand"><Logo onDark /><Wordmark /></Link><span className="spacer" />{langPick}<Link className="btn small" href="/login">{t('signIn')}</Link></header>
         <div className="sitemain">{children}</div>
-        <footer className="sitefoot"><span>Zuri Home · {L.footer}</span><nav aria-label="Legal"><Link href="/verified">{L.verified}</Link><Link href="/privacy">{L.privacy}</Link><Link href="/terms">{L.terms}</Link></nav></footer>
+        <footer className="sitefoot"><span>Edupato Homes · {L.footer}</span><nav aria-label="Legal"><Link href="/verified">{L.verified}</Link><Link href="/privacy">{L.privacy}</Link><Link href="/terms">{L.terms}</Link></nav></footer>
       </div>
     );
   }
-  if (!signedIn) return <div className="plain"><div className="brand"><Logo /><span>Zuri Home<small>{t('appTagline')}</small></span></div>{children}<p style={{ textAlign: 'center' }}>{langPick}</p></div>;
+  if (!signedIn) return <div className="plain"><div className="brand"><Logo size={56} /><Wordmark /></div>{children}<p style={{ textAlign: 'center' }}>{langPick}</p></div>;
   return (
     <div className="shell">
       <aside className="side">
-        <div className="brand"><Logo /><span>Zuri Home<small>{t('appTagline')}</small></span></div>
+        <div className="brand"><Logo onDark /><Wordmark /></div>
         <nav className="nav" aria-label="Main">
           {items.map((i) => <Link key={i.href} href={i.href} aria-current={i.on ? 'page' : undefined}><span className="ic" aria-hidden>{i.icon}</span>{i.label}</Link>)}
         </nav>
         <div className="foot">{langPick}<button className="link" onClick={signOut}>{t('signOut')}</button></div>
       </aside>
       <div className="content">
-        <div className="topbar"><span className="brand"><Logo />Zuri Home</span><span className="spacer" />{langPick}<button className="link" onClick={signOut}>{t('signOut')}</button></div>
+        <div className="topbar"><span className="brand"><Logo onDark /><Wordmark /></span><span className="spacer" />{langPick}<button className="link" onClick={signOut}>{t('signOut')}</button></div>
         <PolicyBanner />
         <main>{children}</main>
       </div>

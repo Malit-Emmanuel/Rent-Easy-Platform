@@ -21,7 +21,7 @@ export default function MyData() {
     if (r.status === 429) return setErr(t('drTooMany'));
     if (r.status !== 200 || !r.data) return setErr(t('genericError'));
     const url = URL.createObjectURL(new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a'); a.href = url; a.download = `zuri-home-my-data-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `edupato-homes-my-data-${new Date().toISOString().slice(0, 10)}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   async function send(e: React.FormEvent) {

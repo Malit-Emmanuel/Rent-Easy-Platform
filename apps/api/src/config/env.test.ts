@@ -13,7 +13,7 @@ test('production needs a real channel or a named test allow-list', () => {
   assert.throws(() => loadConfig({ ...ok, APP_ENV: 'production' }), /real message channel/);
   assert.throws(() => loadConfig({ ...ok, VERCEL_ENV: 'production' }), /real message channel/);
   assert.equal(loadConfig({ ...ok, APP_ENV: 'production', DEV_OTP_ALLOWLIST: '0702461238' }).devOtpAllowlist[0], '+254702461238');
-  const at = { SMS_PROVIDER: 'africastalking', AT_USERNAME: 'zuri', AT_API_KEY: 'k', AT_ENV: 'live' };
+  const at = { SMS_PROVIDER: 'africastalking', AT_USERNAME: 'edupato', AT_API_KEY: 'k', AT_ENV: 'live' };
   assert.equal(loadConfig({ ...ok, ...at, APP_ENV: 'production' }).africasTalking?.baseUrl, 'https://api.africastalking.com');
 });
 test('production refuses the Africa\'s Talking sandbox', () => {
@@ -33,7 +33,7 @@ test('WhatsApp is optional, needs both values, and defaults to WhatsApp first th
   assert.throws(() => loadConfig({ ...ok, WHATSAPP_PHONE_NUMBER_ID: '123' }), /WHATSAPP_ACCESS_TOKEN/);
   const c = loadConfig({ ...ok, WHATSAPP_PHONE_NUMBER_ID: '123', WHATSAPP_ACCESS_TOKEN: 'tok' });
   assert.deepEqual(c.otpChannels, ['whatsapp', 'sms']);
-  assert.equal(c.whatsapp?.template, 'zuri_login_code');
+  assert.equal(c.whatsapp?.template, 'edupato_login_code');
   assert.throws(() => loadConfig({ ...ok, OTP_CHANNELS: 'whatsapp' }), /not set/);
   assert.throws(() => loadConfig({ ...ok, OTP_CHANNELS: 'telegram' }), /unknown channel/);
 });

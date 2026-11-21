@@ -3,7 +3,7 @@
 Look and feel only. No change to behaviour, data, sign-in or the API.
 
 ## What changed
-- Palette: deep forest green (trust) with warm sand backgrounds, terracotta and gold used sparingly. "Zuri" means beautiful in Swahili. All colours are tokens at the top of `globals.css`; change them there to re-theme everything.
+- Palette (superseded by S14, which uses the Edupato red and black): All colours are tokens at the top of `globals.css`; change them there to re-theme everything.
 - Type: warm serif for headings and numbers (system fonts, no downloads, so no new third-party calls), clean sans for text. Small labels no longer use monospace.
 - Side menu: deep green with a gold marker on the current page, a "Z" logo mark. On phones: a matching top bar and a bottom bar whose six items fit a 390px screen.
 - Cards, tiles and tables: softer shadows, rounder corners, coloured tile tops, hover lift on property cards, richer gradient pictures.

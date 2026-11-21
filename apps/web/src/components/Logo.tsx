@@ -1,12 +1,15 @@
-/** The Zuri Home mark: a house with a check inside it (a property that has been checked). Decorative, so hidden from screen readers. */
-export default function Logo({ size = 34 }: { size?: number }) {
+/**
+ * The Edupato emblem (traced from the company logo supplied by Edupato Enterprise Limited): a ring around two bars forming an "E".
+ * On a dark background the black ring is drawn white. Decorative, so hidden from screen readers.
+ */
+const RING = "M424.0 881.4C422.1 881.2 414.9 880.5 408.0 879.9C324.3 872.5 239.7 836.9 173.3 781.3C-20.2 619.5 -35.5 328.1 140.0 147.6C210.7 74.9 298.9 31.2 401.0 18.4C418.1 16.3 464.8 15.4 483.6 16.9C577.7 24.3 666.2 61.6 736.4 123.4C748.0 133.6 763.6 148.7 767.1 153.1L770.0 156.8L728.9 178.4L687.8 200.1L681.6 194.3C611.4 128.7 505.9 95.1 409.1 107.5C258.8 126.7 137.7 241.4 112.1 389.0C107.3 416.4 105.7 463.8 108.8 487.0C122.2 588.8 171.5 671.9 252.8 729.9C328.7 784.1 426.3 804.6 519.1 785.9C655.5 758.5 762.6 649.8 788.9 512.0C794.7 481.4 796.2 440.3 792.5 410.5C791.5 402.2 790.6 394.4 790.6 393.1C790.5 391.0 794.8 388.4 830.9 368.9C853.2 356.9 871.6 347.2 871.8 347.4C872.5 348.1 875.1 360.5 877.5 374.5C891.7 456.0 882.0 542.0 850.0 617.0C785.8 767.7 644.7 869.0 482.0 881.0C469.7 881.9 432.4 882.1 424.0 881.4Z";
+const E = "M415.0 749.3C319.5 739.2 238.1 687.6 185.1 603.5C182.1 598.8 179.9 594.8 180.1 594.6C180.3 594.5 193.8 587.4 210.0 578.8C248.8 558.3 357.3 500.9 367.5 495.5C371.9 493.2 445.9 454.0 532.0 408.5C618.1 362.9 698.9 320.2 711.5 313.5C731.3 302.9 734.7 301.4 735.7 302.7C742.6 311.4 761.5 369.2 763.2 386.8L763.5 390.1L713.0 417.4C646.7 453.2 385.5 594.0 358.0 608.8C346.2 615.2 336.3 620.5 336.1 620.7C333.4 622.8 370.1 637.7 390.6 642.9C444.6 656.6 500.8 648.3 561.2 617.8C569.9 613.5 591.9 600.9 610.2 589.8C677.1 549.5 729.3 519.4 729.8 520.8C730.3 522.4 721.5 547.7 716.0 560.6C675.5 655.0 592.4 724.7 497.0 744.4C473.4 749.2 435.7 751.5 415.0 749.3ZM168.1 575.8C160.9 558.9 144.8 503.9 141.3 484.4C137.5 462.3 137.2 418.1 140.8 395.1C150.7 332.1 176.3 281.6 220.9 236.9C300.3 157.5 414.9 128.1 522.5 159.7C529.1 161.7 535.3 163.5 536.3 163.7C540.2 164.8 533.1 169.1 510.4 179.3C491.9 187.6 381.6 242.9 368.0 250.6C297.4 290.6 262.1 332.1 243.5 397.0C240.0 409.0 234.5 434.8 235.2 435.5C235.3 435.7 251.0 427.6 270.0 417.6C313.3 394.8 325.5 388.3 350.5 375.2C361.5 369.5 373.6 363.1 377.5 361.0C427.1 334.6 666.1 209.0 666.8 209.0C668.5 209.0 690.1 232.2 698.6 243.1C705.9 252.5 717.1 268.6 722.8 278.1L725.0 281.8L700.3 295.1C664.7 314.1 544.9 378.5 536.0 383.2C531.9 385.5 450.7 429.1 355.5 480.2C260.3 531.3 179.7 574.7 176.2 576.6L170.0 580.1L168.1 575.8Z";
+
+export default function Logo({ size = 36, onDark = false }: { size?: number; onDark?: boolean }) {
   return (
-    <svg className="logo" width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <defs><linearGradient id="zg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2e8468" /><stop offset="1" stopColor="#174d3d" /></linearGradient></defs>
-      <rect width="64" height="64" rx="15" fill="url(#zg)" />
-      <path d="M13 32 32 16.5 51 32" fill="none" stroke="#fff" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M19.5 29v18.5h25V29" fill="none" stroke="#fff" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M25.5 38.5l5 5 9-10.5" fill="none" stroke="#f0b95a" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className="logo" width={size} height={size} viewBox="0 0 900 897" aria-hidden="true" focusable="false">
+      <path fill={onDark ? '#ffffff' : '#070908'} fillRule="evenodd" d={RING} />
+      <path fill="#ed1c24" fillRule="evenodd" d={E} />
     </svg>
   );
 }

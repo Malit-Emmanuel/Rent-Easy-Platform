@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 // Until real photos are shown here, each property gets a calm colour tile (same colour every time for the same name).
-const TONES = ['linear-gradient(135deg,#2f7a62,#173f33)', 'linear-gradient(135deg,#b4673c,#6e3a1f)', 'linear-gradient(135deg,#4b7bb0,#283f5e)', 'linear-gradient(135deg,#d0a14b,#7d5a17)', 'linear-gradient(135deg,#7a5c8f,#3f2d4f)', 'linear-gradient(135deg,#3f8f9a,#1d4b52)'];
+const TONES = ['linear-gradient(135deg,#3a3f3d,#0f1110)', 'linear-gradient(135deg,#d01a21,#6a0a0f)', 'linear-gradient(135deg,#566072,#1f2733)', 'linear-gradient(135deg,#9a7a42,#47341a)', 'linear-gradient(135deg,#8a3a46,#3a1620)', 'linear-gradient(135deg,#4a6a8f,#1d2e45)'];
 const tone = (s: string) => TONES[[...s].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7) % TONES.length];
 
 export interface PropertyRow { id: string; name: string; addressText: string; nodeName?: string | null; unitCount: number; caseStatus?: string | null; verifiedUntil?: string | null }

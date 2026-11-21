@@ -25,8 +25,8 @@ const PRIVACY: Record<Lang, { title: string; blocks: Block[] }> = {
   en: {
     title: 'Privacy notice',
     blocks: [
-      { h: 'Who we are', p: ['Zuri Home is run by {company} (registration {reg}, {address}). {company} decides how your personal information is used and is responsible for protecting it. This is called being the "data controller".', 'Questions about your information: {contact}.'] },
-      { h: 'What Zuri Home does', p: ['Zuri Home connects landlords, agents and property managers with tenants and buyers, and checks property information so people can trust it.', 'A "verified" badge means a person at Zuri Home checked the documents we received (and, later, a short video). It is not a guarantee of ownership or of the condition of a property.'] },
+      { h: 'Who we are', p: ['Edupato Homes is run by {company} (registration {reg}, {address}). {company} decides how your personal information is used and is responsible for protecting it. This is called being the "data controller".', 'Questions about your information: {contact}.'] },
+      { h: 'What Edupato Homes does', p: ['Edupato Homes connects landlords, agents and property managers with tenants and buyers, and checks property information so people can trust it.', 'A "verified" badge means a person at Edupato Homes checked the documents we received (and, later, a short video). It is not a guarantee of ownership or of the condition of a property.'] },
       { h: 'What we collect and why', table: { head: ['What', 'Why', 'Notes'], rows: [
         ['Phone number and name', 'To sign you in and run your account', 'Sign-in codes expire after 5 minutes and are stored only in scrambled form'],
         ['Your organisation and role', 'To run organisation accounts and show who can do what', ''],
@@ -40,7 +40,7 @@ const PRIVACY: Record<Lang, { title: string; blocks: Block[] }> = {
       { h: 'Who can see your information', ul: [
         'Reviewers: only the cases they are reviewing. Every time a reviewer opens a document or video, it is recorded.',
         'Administrators: statistics and records of how the review work is going. They see names and phone numbers only to answer a privacy request, and each time they look, it is recorded.',
-        'Service providers that help us run Zuri Home: hosting and storage on servers in Europe; text-message and WhatsApp providers, which receive your phone number and the sign-in message once connected; and an identity-check provider, once chosen.',
+        'Service providers that help us run Edupato Homes: hosting and storage on servers in Europe; text-message and WhatsApp providers, which receive your phone number and the sign-in message once connected; and an identity-check provider, once chosen.',
         'We do not sell your information.',
         '[[Lawyer to confirm the wording on sending information outside Kenya]]',
       ] },
@@ -73,8 +73,8 @@ const PRIVACY: Record<Lang, { title: string; blocks: Block[] }> = {
   sw: {
     title: 'Taarifa ya faragha',
     blocks: [
-      { h: 'Sisi ni nani', p: ['Zuri Home inaendeshwa na {company} (usajili {reg}, {address}). {company} inaamua jinsi taarifa zako binafsi zinavyotumika na inawajibika kuzilinda. Hii inaitwa "mdhibiti wa data".', 'Maswali kuhusu taarifa zako: {contact}.'] },
-      { h: 'Zuri Home hufanya nini', p: ['Zuri Home inawaunganisha wenye nyumba, mawakala na wasimamizi wa mali na wapangaji na wanunuzi, na inakagua taarifa za mali ili watu waziamini.', 'Alama ya "imethibitishwa" ina maana mtu wa Zuri Home alikagua nyaraka tulizopokea (na baadaye, video fupi). Si hakikisho la umiliki wala hali ya mali.'] },
+      { h: 'Sisi ni nani', p: ['Edupato Homes inaendeshwa na {company} (usajili {reg}, {address}). {company} inaamua jinsi taarifa zako binafsi zinavyotumika na inawajibika kuzilinda. Hii inaitwa "mdhibiti wa data".', 'Maswali kuhusu taarifa zako: {contact}.'] },
+      { h: 'Edupato Homes hufanya nini', p: ['Edupato Homes inawaunganisha wenye nyumba, mawakala na wasimamizi wa mali na wapangaji na wanunuzi, na inakagua taarifa za mali ili watu waziamini.', 'Alama ya "imethibitishwa" ina maana mtu wa Edupato Homes alikagua nyaraka tulizopokea (na baadaye, video fupi). Si hakikisho la umiliki wala hali ya mali.'] },
       { h: 'Tunakusanya nini na kwa nini', table: { head: ['Nini', 'Kwa nini', 'Maelezo'], rows: [
         ['Namba ya simu na jina', 'Kukuingiza na kuendesha akaunti yako', 'Nambari za kuingia huisha baada ya dakika 5 na huhifadhiwa kwa umbo lililofichwa tu'],
         ['Shirika lako na wadhifa', 'Kuendesha akaunti za mashirika na kuonyesha nani anaweza kufanya nini', ''],
@@ -88,7 +88,7 @@ const PRIVACY: Record<Lang, { title: string; blocks: Block[] }> = {
       { h: 'Nani anaweza kuona taarifa zako', ul: [
         'Wakaguzi: kesi wanazozikagua tu. Kila mkaguzi anapofungua nyaraka au video, hurekodiwa.',
         'Wasimamizi: takwimu na kumbukumbu za jinsi kazi ya ukaguzi inavyoendelea. Wanaona majina na namba za simu ili kujibu ombi la faragha tu, na kila wanapoangalia, hurekodiwa.',
-        'Watoa huduma wanaotusaidia kuendesha Zuri Home: huduma za seva na hifadhi barani Ulaya; watoa huduma za ujumbe mfupi na WhatsApp, wanaopokea namba yako ya simu na ujumbe wa kuingia pindi wakiunganishwa; na mtoa huduma wa ukaguzi wa kitambulisho, atakapochaguliwa.',
+        'Watoa huduma wanaotusaidia kuendesha Edupato Homes: huduma za seva na hifadhi barani Ulaya; watoa huduma za ujumbe mfupi na WhatsApp, wanaopokea namba yako ya simu na ujumbe wa kuingia pindi wakiunganishwa; na mtoa huduma wa ukaguzi wa kitambulisho, atakapochaguliwa.',
         'Hatuuzi taarifa zako.',
         '[[Wakili athibitishe maneno kuhusu kutuma taarifa nje ya Kenya]]',
       ] },
@@ -124,8 +124,8 @@ const TERMS: Record<Lang, { title: string; blocks: Block[] }> = {
   en: {
     title: 'Terms of use',
     blocks: [
-      { h: 'About these terms', p: ['These terms are between you and {company}, which runs Zuri Home. By using Zuri Home you agree to them. [[Lawyer to complete and approve this text]]'] },
-      { h: 'Using Zuri Home', ul: [
+      { h: 'About these terms', p: ['These terms are between you and {company}, which runs Edupato Homes. By using Edupato Homes you agree to them. [[Lawyer to complete and approve this text]]'] },
+      { h: 'Using Edupato Homes', ul: [
         'Give true information and keep your sign-in private.',
         'Only list or ask us to verify a property you are allowed to offer.',
         'Do not upload false or altered documents, or reuse a video from somewhere else.',
@@ -133,7 +133,7 @@ const TERMS: Record<Lang, { title: string; blocks: Block[] }> = {
         'Do not misuse the service, for example by trying to get around its limits or checks.',
       ] },
       { h: 'Verification and badges', ul: [
-        'A person at Zuri Home reviews your documents (and, later, a short video) and decides. Computed hints only advise.',
+        'A person at Edupato Homes reviews your documents (and, later, a short video) and decides. Computed hints only advise.',
         'You will be told the reason if a request is turned down or needs changes, and you can appeal.',
         'A badge expires and can be withdrawn, for example if the information is found to be wrong.',
         'A badge is not a guarantee of ownership, price or the condition of a property.',
@@ -149,8 +149,8 @@ const TERMS: Record<Lang, { title: string; blocks: Block[] }> = {
   sw: {
     title: 'Masharti ya matumizi',
     blocks: [
-      { h: 'Kuhusu masharti haya', p: ['Masharti haya ni kati yako na {company}, inayoendesha Zuri Home. Kwa kutumia Zuri Home unakubali. [[Wakili akamilishe na kuidhinisha maandishi haya]]'] },
-      { h: 'Kutumia Zuri Home', ul: [
+      { h: 'Kuhusu masharti haya', p: ['Masharti haya ni kati yako na {company}, inayoendesha Edupato Homes. Kwa kutumia Edupato Homes unakubali. [[Wakili akamilishe na kuidhinisha maandishi haya]]'] },
+      { h: 'Kutumia Edupato Homes', ul: [
         'Toa taarifa za kweli na uweke siri ya kuingia kwako.',
         'Orodhesha au tuombe tuthibitishe mali unayoruhusiwa kuitoa tu.',
         'Usipakie nyaraka za uongo au zilizobadilishwa, wala kutumia tena video kutoka kwingine.',
@@ -158,7 +158,7 @@ const TERMS: Record<Lang, { title: string; blocks: Block[] }> = {
         'Usitumie huduma vibaya, kwa mfano kwa kujaribu kukwepa mipaka au ukaguzi wake.',
       ] },
       { h: 'Uthibitishaji na alama', ul: [
-        'Mtu wa Zuri Home hukagua nyaraka zako (na baadaye, video fupi) na kuamua. Vidokezo vya kompyuta hushauri tu.',
+        'Mtu wa Edupato Homes hukagua nyaraka zako (na baadaye, video fupi) na kuamua. Vidokezo vya kompyuta hushauri tu.',
         'Utaambiwa sababu ikiwa ombi limekataliwa au linahitaji mabadiliko, na unaweza kukata rufaa.',
         'Alama huisha muda na inaweza kuondolewa, kwa mfano taarifa zikionekana kuwa si sahihi.',
         'Alama si hakikisho la umiliki, bei wala hali ya mali.',

@@ -61,7 +61,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (env.WHATSAPP_PHONE_NUMBER_ID || env.WHATSAPP_ACCESS_TOKEN) {
     whatsapp = {
       phoneNumberId: need('WHATSAPP_PHONE_NUMBER_ID'), accessToken: need('WHATSAPP_ACCESS_TOKEN'),
-      template: env.WHATSAPP_TEMPLATE || 'zuri_login_code', language: env.WHATSAPP_TEMPLATE_LANG || 'en',
+      template: env.WHATSAPP_TEMPLATE || 'edupato_login_code', language: env.WHATSAPP_TEMPLATE_LANG || 'en',
       apiBase: env.WHATSAPP_API_BASE || 'https://graph.facebook.com', apiVersion: env.WHATSAPP_API_VERSION || 'v23.0',
     };
   }
