@@ -1,10 +1,10 @@
-# Kenya Housing Connection Platform
+# Edupato Homes (Kenya Housing Connection Platform)
 
 Trusted transaction infrastructure for housing in Kenya. Spine: Discover, Verify, View, Apply, Sign, Pay, Record.
 Source of truth: *Development Execution Plan v1.0* (28 Sep 2026). Scope guard: `docs/NOT_IN_V1.md`.
 
 ## Status (November 2026): running on staging, test data only
-The API runs on Railway, the database on Supabase and the dashboard on Vercel. Slices S1 to S13 are built, tested and deployed. No real tenant data, ID checks or property videos are processed yet (see "Before real data" below).
+The API runs on Railway, the database on Supabase and the dashboard on Vercel. Slices S1 to S16 and S19 to S21 are built and tested. Public rental search (S21) is built but switched off (`PUBLIC_SEARCH_ENABLED`). No real tenant data, ID checks or property videos are processed yet (see "Before real data" below).
 
 | Slice | What it delivers | Notes |
 |---|---|---|
@@ -19,8 +19,14 @@ The API runs on Railway, the database on Supabase and the dashboard on Vercel. S
 | S8 | "My data": access, correction and deletion requests (recorded, never auto-deleted) | [Note](docs/S8_My_Data.md) |
 | S9 to S11 | Draft privacy notice and terms (English and Swahili), audited platform-role grants, policy acceptance recording | |
 | S12 to S13 | Visual refresh, brand mark, public home page, installable web app | |
+| S14 | Rebrand to Edupato Homes | [Note](docs/S14_Rebrand_Edupato_Homes.md) |
+| S15 | First-use polish: getting-started card, loading placeholders, friendlier empty screens | [Note](docs/S15_First_Use_Polish.md) |
+| S16 | Foreign key indexes and pilot-readiness runbook | [Note](docs/S16_Pilot_Readiness.md) |
+| S19 | Listings for managers: five costs, total to move in, publish and withdraw | [Note](docs/S19_Listings.md) |
+| S20 | Reminders at 14 days and hiding of stale listings at 21 days | [Note](docs/S20_Stale_Listings.md) |
+| S21 | Public rental search without sign-in | Built but switched off (`PUBLIC_SEARCH_ENABLED`). [Note](docs/S21_Public_Search.md) |
 
-Tests: 20 database migrations with SQL rule tests (`db/tests`), plus about 180 automated API and web tests across 62 test files. CI runs on every push (`.github/workflows/ci.yml`).
+Tests: 24 database migrations with SQL rule tests (`db/tests`), plus automated API and web tests across 68 test files. CI runs on every push (`.github/workflows/ci.yml`).
 
 ### Before real data
 Per [ADR-0005](docs/adr/0005-legal-gate.md), no payment, ID-check, data-processing or property agreement is signed until the company is registered and an advocate has reviewed the [data protection pack](docs/Advocate_Pack_Data_Protection.md). Real property videos stay off (`T2_ENABLED=false`) until legal clearance. Scope guard: [`docs/NOT_IN_V1.md`](docs/NOT_IN_V1.md).
