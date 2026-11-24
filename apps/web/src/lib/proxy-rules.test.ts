@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isAllowedProxyPath as ok, isSameOrigin as same } from './proxy-rules';
+import { isAllowedProxyPath as ok, isAllowedPublicPath as pub, isSameOrigin as same } from './proxy-rules';
 
 test('allows dashboard resources only', () => {
   for (const p of [['me'], ['me', 'verification'], ['orgs', 'x', 'members'], ['invitations', 'accept'], ['nodes'], ['document-types'], ['orgs', 'x', 'properties', 'y', 'files', 'z', 'link'], ['orgs', 'x', 'properties', 'y', 'units'], ['admin', 'verifications', 'queue']]) assert.equal(ok(p), true, p.join('/'));
@@ -33,4 +33,10 @@ test('oversight routes are proxied, nothing next to them is', () => {
 test('privacy routes: own data under me/, administrator handling under admin/privacy, nothing next to them', () => {
   for (const p of [['me', 'data-export'], ['me', 'data-requests'], ['admin', 'privacy', 'requests'], ['admin', 'privacy', 'requests', 'x', 'handle']]) assert.equal(ok(p), true, p.join('/'));
   for (const p of [['admin', 'privacyx'], ['admin', 'privacy-old', 'requests']]) assert.equal(ok(p), false, p.join('/'));
+});
+
+test('public search forwards only the list, one listing by id, and the areas', () => {
+  const id = '3f2b1c9e-8a4d-4e6f-9b1a-2c3d4e5f6a7b';
+  for (const p of [['listings'], ['areas'], ['listings', id]]) assert.equal(pub(p), true, p.join('/'));
+  for (const p of [[], ['me'], ['orgs', 'x'], ['listings', 'x'], ['listings', id, 'contact'], ['listings', '..'], ['areas', 'x'], ['internal', 'cron', 'x']]) assert.equal(pub(p), false, p.join('/'));
 });

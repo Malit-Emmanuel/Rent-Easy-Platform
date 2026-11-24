@@ -7,12 +7,14 @@ import { ImportController } from './import/import.controller';
 import { ImportService } from './import/import.service';
 import { ListingsController } from './listings.controller';
 import { ListingsService } from './listings.service';
+import { PublicListingsController } from './public.controller';
+import { PublicListingsService } from './public.service';
 import { SupplyController } from './supply.controller';
 import { SupplyService } from './supply.service';
 
 @Module({
-  controllers: [SupplyController, ListingsController, FilesController, ImportController],
-  providers: [SupplyService, ListingsService, FilesService, ImportService, { provide: STORAGE_PORT, useFactory: () => buildStorage() }],
+  controllers: [SupplyController, ListingsController, PublicListingsController, FilesController, ImportController],
+  providers: [SupplyService, ListingsService, PublicListingsService, FilesService, ImportService, { provide: STORAGE_PORT, useFactory: () => buildStorage() }],
   exports: [SupplyService, ListingsService, FilesService, STORAGE_PORT],
 })
 export class SupplyModule {}

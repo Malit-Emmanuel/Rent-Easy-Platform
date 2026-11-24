@@ -16,7 +16,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const { t, lang } = useI18n();
   const path = usePathname(), router = useRouter();
   const [reviewer, setReviewer] = useState(false), [oversight, setOversight] = useState(false);
-  const isSite = ['/welcome', '/verified', '/privacy', '/terms'].includes(path);   // public pages: their own frame, no API calls
+  const isSite = ['/welcome', '/verified', '/privacy', '/terms'].includes(path) || path === '/homes' || path.startsWith('/homes/');   // public pages: their own frame, no API calls
   const signedIn = path !== '/login' && !isSite;
   useEffect(() => { if (signedIn) { api('admin/verifications/queue').then((r) => setReviewer(r.status === 200)); api('admin/review/access').then((r) => setOversight(r.status === 200)); } }, [signedIn]);
 

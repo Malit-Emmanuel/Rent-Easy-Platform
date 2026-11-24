@@ -5,7 +5,7 @@ export function middleware(req: NextRequest) {
   const has = !!req.cookies.get('khp_rt')?.value;
   const onLogin = req.nextUrl.pathname === '/login';
   const path = req.nextUrl.pathname;
-  if (['/privacy', '/terms', '/welcome', '/verified'].includes(path)) return NextResponse.next();   // readable without signing in
+  if (['/privacy', '/terms', '/welcome', '/verified'].includes(path) || path === '/homes' || path.startsWith('/homes/')) return NextResponse.next();   // readable without signing in
   if (!has && path === '/') return NextResponse.redirect(new URL('/welcome', req.url));             // visitors see the public home page; signed-in people see their dashboard
   if (!has && !onLogin) return NextResponse.redirect(new URL('/login', req.url));
   if (has && onLogin) return NextResponse.redirect(new URL('/', req.url));
