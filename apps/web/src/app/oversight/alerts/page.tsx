@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import { OversightTabs } from '@/components/OversightTabs';
 import { api } from '@/lib/client';
@@ -40,7 +41,7 @@ export default function OversightAlerts() {
         </select>
       </div>
       {msg && <p className="msg" role="status">{msg}</p>}{err && <p className="error" role="alert">{err}</p>}
-      {alerts === null ? <p className="msg">{t('loading')}</p> : alerts.length === 0 ? <div className="empty">{t('ovNoAlerts')}</div> : alerts.map((a) => {
+      {alerts === null ? <Loading /> : alerts.length === 0 ? <div className="empty">{t('ovNoAlerts')}</div> : alerts.map((a) => {
         const live = a.status === 'open' || a.status === 'escalated';
         return (
           <article className="card" key={a.id}>

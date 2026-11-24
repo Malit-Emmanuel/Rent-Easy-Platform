@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import ReviewTabs from '@/components/ReviewTabs';
 import { api } from '@/lib/client';
@@ -16,7 +17,7 @@ export default function HistoryPage() {
       <PageHead eyebrow={t('appName')} title={t('rvTitle')} />
       <ReviewTabs />
       <p className="msg">{t('rvHistoryHint')}</p>
-      {rows === null ? <p className="msg">{t('loading')}</p> : rows.length === 0 ? <div className="empty">{t('rvHistoryEmpty')}</div> : (
+      {rows === null ? <Loading /> : rows.length === 0 ? <div className="empty">{t('rvHistoryEmpty')}</div> : (
         <table className="table">
           <thead><tr><th>{t('rvWhen')}</th><th>{t('rvProperty')}</th><th>{t('rvOrg')}</th><th>{t('rvOutcome')}</th></tr></thead>
           <tbody>{rows.map((r, i) => (

@@ -2,6 +2,9 @@
 import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading, { SkelNumber } from '@/components/Loading';
+import EmptyState from '@/components/EmptyState';
+import GettingStarted from '@/components/GettingStarted';
 import PropertyCard, { PropertyRow, cardState } from '@/components/PropertyCard';
 import { api } from '@/lib/client';
 
@@ -39,16 +42,15 @@ export default function Home() {
       <p className="eyebrow">{t('overview')}</p>
       <h1>{t('home')}</h1>
       <div className="stats">
-        <div className="stat"><b>{orgs === null ? '–' : orgs.length}</b><span>{t('yourOrgs')}</span></div>
-        <div className="stat"><b>{orgs === null ? '–' : props}</b><span>{t('totalProperties')}</span></div>
-        <div className="stat"><b>{orgs === null ? '–' : units}</b><span>{t('totalUnits')}</span></div>
-        <div className="stat"><b style={{ fontSize: '1.1rem' }}>{verified === null ? t('loading') : verified ? t('verified') : t('notVerified')}</b><span><Link href="/verification">{t('verification')}</Link></span></div>
+        <div className="stat"><b>{orgs === null ? <SkelNumber /> : orgs.length}</b><span>{t('yourOrgs')}</span></div>
+        <div className="stat"><b>{orgs === null ? <SkelNumber /> : props}</b><span>{t('totalProperties')}</span></div>
+        <div className="stat"><b>{orgs === null ? <SkelNumber /> : units}</b><span>{t('totalUnits')}</span></div>
+        <div className="stat"><b style={{ fontSize: '1.1rem' }}>{verified === null ? <SkelNumber /> : verified ? t('verified') : t('notVerified')}</b><span><Link href="/verification">{t('verification')}</Link></span></div>
       </div>
-      {orgs && orgs.length > 0 && props === 0 && (
-        <div className="card"><p className="eyebrow">{t('nextStep')}</p><strong>{t('nextImport')}</strong><p className="msg">{t('nextImportHint')}</p>
-          <Link className="btn" href={`/orgs/${orgs[0].id}/properties/import`}>{t('importLink')}</Link></div>
+      {orgs && verified !== null && (
+        <GettingStarted s={{ hasOrg: orgs.length > 0, hasProperties: props > 0, idVerified: verified, orgHref: orgs[0] ? `/orgs/${orgs[0].id}/properties/import` : undefined, firstPropertyHref: orgs.flatMap((o) => o.props.map((p) => `/orgs/${o.id}/properties/${p.id}`))[0] }} />
       )}
-      {orgs === null ? <p className="msg">{t('loading')}</p> : orgs.length === 0 ? <div className="empty">{t('noOrgs')}</div> :
+      {orgs === null ? <Loading rows={2} cards /> : orgs.length === 0 ? <EmptyState title={t('emptyOrgsTitle')}>{t('emptyOrgsBody')}</EmptyState> :
         orgs.map((o) => (
           <section key={o.id}>
             <div className="row"><h2 style={{ margin: '28px 0 4px' }}>{o.name}</h2><span className="spacer" /><Link href={`/orgs/${o.id}/properties`}>{t('propertiesLink')} →</Link></div>
@@ -56,7 +58,7 @@ export default function Home() {
             {o.props.length > 0 && <div className="hscroll">{o.props.slice(0, 8).map((p) => <PropertyCard key={p.id} orgId={o.id} p={p} units={t('unitCount')} one={t('unitOne')} tag={p.nodeName ?? undefined} state={cardState(p, t)} />)}</div>}
           </section>
         ))}
-      <h2>{t('createOrg')}</h2>
+      <h2 id="create-org">{t('createOrg')}</h2>
       <form onSubmit={create}>
         <label htmlFor="org">{t('orgName')}</label>
         <input id="org" value={name} onChange={(e) => setName(e.target.value)} minLength={2} required />

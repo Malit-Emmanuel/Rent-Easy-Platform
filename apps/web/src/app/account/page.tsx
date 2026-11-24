@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import Link from 'next/link';
 import { LEGAL_LABELS } from '@/lib/legal';
 import PageHead from '@/components/PageHead';
@@ -56,7 +57,7 @@ export default function MyData() {
       </section>
       {msg && <p className="msg" role="status">{msg}</p>}{err && <p className="error" role="alert">{err}</p>}
       <h2>{t('drMyRequests')}</h2>
-      {reqs === null ? <p className="msg">{t('loading')}</p> : reqs.length === 0 ? <div className="empty">{t('drNoRequests')}</div> : reqs.map((r) => (
+      {reqs === null ? <Loading /> : reqs.length === 0 ? <div className="empty">{t('drNoRequests')}</div> : reqs.map((r) => (
         <article className="card" key={r.id}>
           <div className="row"><strong>{word(r.kind === 'correction' ? 'drKindCorrection' : 'drKindDeletion')}</strong>
             <span className={`vstate ${r.status === 'open' ? 'wait' : r.status === 'completed' ? 'ok' : 'bad'}`}>{word('drStatus_' + r.status)}</span>

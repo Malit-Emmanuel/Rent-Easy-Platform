@@ -53,6 +53,7 @@ export default function Login() {
         <form onSubmit={sendCode}>
           <label htmlFor="phone">{t('phoneLabel')}</label>
           <input id="phone" inputMode="tel" autoComplete="tel" placeholder={t('phoneHint')} value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          <p className="phone-help">{t('phoneHelp')}</p>
           <button disabled={busy}>{t('sendCode')}</button>
         </form>
       ) : (

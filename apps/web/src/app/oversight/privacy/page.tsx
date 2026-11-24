@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import { OversightTabs } from '@/components/OversightTabs';
 import { api } from '@/lib/client';
@@ -34,7 +35,7 @@ export default function PrivacyRequests() {
         </select>
       </div>
       {msg && <p className="msg" role="status">{msg}</p>}{err && <p className="error" role="alert">{err}</p>}
-      {rows === null ? <p className="msg">{t('loading')}</p> : rows.length === 0 ? <div className="empty">{t('drNoAdmin')}</div> : rows.map((r) => (
+      {rows === null ? <Loading /> : rows.length === 0 ? <div className="empty">{t('drNoAdmin')}</div> : rows.map((r) => (
         <article className="card" key={r.id}>
           <div className="row"><strong>{word(r.kind === 'correction' ? 'drKindCorrection' : 'drKindDeletion')}</strong>
             <span className={`vstate ${r.status === 'open' ? 'wait' : r.status === 'completed' ? 'ok' : 'bad'}`}>{word('drStatus_' + r.status)}</span>

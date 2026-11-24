@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
+import EmptyState from '@/components/EmptyState';
 import PropertyCard, { cardState } from '@/components/PropertyCard';
 import { api } from '@/lib/client';
 import { readPosition } from '@/lib/position';
@@ -50,7 +52,7 @@ export default function Properties() {
         <span className="spacer" />
         {canWrite && <Link className="btn" href={`/orgs/${orgId}/properties/import`}>{t('importLink')}</Link>}
       </div>
-      {items === null ? <p className="msg">{t('loading')}</p> : items.length === 0 ? <div className="empty">{t('noProperties')}</div> : (() => {
+      {items === null ? <Loading /> : items.length === 0 ? <EmptyState title={t('emptyPropsTitle')}>{t('emptyPropsBody')}</EmptyState> : (() => {
         const shown = items.filter((p) => (!area || p.nodeName === area) && (`${p.name} ${p.addressText}`.toLowerCase().includes(q.trim().toLowerCase())));
         return shown.length === 0 ? <div className="empty">{t('noMatches')}</div> :
           <div className="grid">{shown.map((p) => <PropertyCard key={p.id} orgId={orgId} p={p} units={t('unitCount')} one={t('unitOne')} tag={p.nodeName ?? undefined} state={cardState(p, t)} />)}</div>;

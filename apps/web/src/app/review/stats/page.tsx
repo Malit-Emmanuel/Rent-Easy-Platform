@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import ReviewTabs from '@/components/ReviewTabs';
 import { MonthPicker } from '@/components/OversightTabs';
@@ -18,7 +19,7 @@ export default function MyStats() {
       <ReviewTabs />
       <p className="msg">{t('rvStatsHint')}</p>
       <MonthPicker month={month} onChange={setMonth} />
-      {s === null ? <p className="msg">{t('loading')}</p> : s.decisions === 0 && s.sessions === 0 ? <div className="empty">{t('rvStatsEmpty')}</div> : (
+      {s === null ? <Loading /> : s.decisions === 0 && s.sessions === 0 ? <div className="empty">{t('rvStatsEmpty')}</div> : (
         <>
           <div className="stats">
             <div className="stat"><b>{s.decisions}</b><span>{t('rvStatsDecisions')}</span></div>

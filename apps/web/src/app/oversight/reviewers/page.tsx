@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import { MonthPicker, OversightTabs } from '@/components/OversightTabs';
 import { api } from '@/lib/client';
@@ -18,7 +19,7 @@ export default function OversightReviewers() {
       <p className="msg">{t('ovAdvisory')}</p>
       <MonthPicker month={month} onChange={setMonth} />
       <p className="msg">{t('ovRvNote')}</p>
-      {rep === null ? <p className="msg">{t('loading')}</p> : rep.reviewers.length === 0 ? <div className="empty">{t('ovNoReviewers')}</div> : (
+      {rep === null ? <Loading /> : rep.reviewers.length === 0 ? <div className="empty">{t('ovNoReviewers')}</div> : (
         <table className="table">
           <thead><tr><th>{t('ovAccountCol')}</th><th>{t('ovDecisions')}</th><th>{t('ovApproved')} / {t('ovRejected')}</th><th>{t('ovApprovalRate')}</th><th>{t('ovHours')}</th><th>{t('ovSentBack')}</th><th>{t('ovReleasedCol')}</th><th>{t('ovAlertsRaised')}</th></tr></thead>
           <tbody>{rep.reviewers.map((r: any) => (

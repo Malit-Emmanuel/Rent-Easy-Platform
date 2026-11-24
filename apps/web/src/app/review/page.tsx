@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import ReviewTabs from '@/components/ReviewTabs';
 import { api } from '@/lib/client';
@@ -41,7 +42,7 @@ export default function ReviewQueue() {
         </div>
       )}
       <p className="msg">{t('rvHint')}</p>
-      {rows === null ? <p className="msg">{t('loading')}</p> : rows.length === 0 ? <div className="empty">{t('rvEmpty')}</div> : (
+      {rows === null ? <Loading /> : rows.length === 0 ? <div className="empty">{t('rvEmpty')}</div> : (
         <table className="table">
           <thead><tr><th>{t('rvProperty')}</th><th>{t('rvOrg')}</th><th>{t('rvTimeLeft')}</th><th>{t('rvFlags')}</th><th /></tr></thead>
           <tbody>

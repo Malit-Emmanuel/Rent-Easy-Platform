@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Fragment, FormEvent, useCallback, useEffect, useState } from 'react';
 import FilePanel from '@/components/FilePanel';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import VerificationCard from '@/components/VerificationCard';
 import T2Card from '@/components/T2Card';
@@ -65,7 +66,7 @@ export default function PropertyPage() {
   }
 
   if (denied) return <p className="error">{t('noAccess')}</p>;
-  if (!p) return <p className="msg">{t('loading')}</p>;
+  if (!p) return <Loading />;
   return (
     <>
       <PageHead back={{ href: `/orgs/${orgId}/properties`, label: t('properties') }} eyebrow={p.nodeName ?? undefined} title={p.name}><span className="badge">{units.length} {units.length === 1 ? t('unitOne') : t('unitCount')}</span></PageHead>

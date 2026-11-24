@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 
@@ -19,7 +20,7 @@ export default function Verification() {
   return (
     <>
       <PageHead eyebrow={t('appName')} title={t('verification')} />
-      {!s ? <p className="msg">{t('loading')}</p> : (
+      {!s ? <Loading /> : (
         <div className="panel">
           <p><strong>{t('status')}:</strong> <span className="badge">{s.verified ? t('verified') : latest ? t('st_' + latest.status) : t('notVerified')}</span></p>
           {s.verified && s.badgeExpiresAt && <p className="msg">{t('expiresOn')} {new Date(s.badgeExpiresAt).toLocaleDateString()}</p>}

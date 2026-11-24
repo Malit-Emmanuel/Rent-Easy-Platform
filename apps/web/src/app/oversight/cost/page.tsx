@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import { MonthPicker, OversightTabs } from '@/components/OversightTabs';
 import { api } from '@/lib/client';
@@ -34,7 +35,7 @@ export default function OversightCost() {
       <OversightTabs />
       <p className="msg">{t('ovNotPay')}</p>
       <MonthPicker month={month} onChange={setMonth} />
-      {rep === null ? <p className="msg">{t('loading')}</p> : (
+      {rep === null ? <Loading /> : (
         <>
           <h2>{t('ovCostTitle')}</h2>
           <p className="msg">{t('ovTarget').replace('{n}', String(rep.targetKes))}</p>

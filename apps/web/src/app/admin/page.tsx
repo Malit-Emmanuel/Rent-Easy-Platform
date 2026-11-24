@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 
@@ -24,7 +25,7 @@ export default function Admin() {
   return (
     <>
       <PageHead eyebrow={t('appName')} title={t('admin')} />
-      {items === null ? <p className="msg">{t('loading')}</p> : items.length === 0 ? <p className="msg">{t('emptyQueue')}</p> :
+      {items === null ? <Loading /> : items.length === 0 ? <p className="msg">{t('emptyQueue')}</p> :
         items.map((i) => (
           <div className="card" key={i.id}>
             <div><span className="badge">{t('st_' + i.status)}</span> {i.reason_code && <span className="msg">{i.reason_code}</span>}</div>

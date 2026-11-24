@@ -2,6 +2,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import T2EvidencePanel from '@/components/T2EvidencePanel';
 import { api } from '@/lib/client';
@@ -47,7 +48,7 @@ export default function CasePage() {
   async function release() { const r = await api(`review/cases/${caseId}/release`, { method: 'POST' }); if (r.status === 200) router.push('/review'); else setError(t('genericError')); }
 
   if (gone) return <p className="error">{t('rvGone')}</p>;
-  if (!c) return <p className="msg">{t('loading')}</p>;
+  if (!c) return <Loading />;
   const isT2 = c.tier === 't2';
   const open_ = c.status === 'in_review' && c.claimedByMe;
   const reasons = isT2 ? T2_REASONS : T1_REASONS;

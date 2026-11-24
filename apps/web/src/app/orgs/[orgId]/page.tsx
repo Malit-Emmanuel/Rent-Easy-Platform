@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import { api } from '@/lib/client';
 
@@ -33,7 +34,7 @@ export default function Org() {
     if (r.status === 204) load(); else setNote(t('genericError'));
   }
   if (denied) return <p className="error">{t('noAccess')}</p>;
-  if (!org) return <p className="msg">{t('loading')}</p>;
+  if (!org) return <Loading />;
   return (
     <>
       <PageHead back={{ href: '/', label: t('home') }} eyebrow={t('kind_' + org.kind)} title={org.name}><Link className="btn" href={`/orgs/${orgId}/properties`}>{t('propertiesLink')}</Link></PageHead>

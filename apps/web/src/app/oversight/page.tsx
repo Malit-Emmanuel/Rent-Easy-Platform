@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/components/I18n';
+import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
 import { MonthPicker, OversightTabs } from '@/components/OversightTabs';
 import { api } from '@/lib/client';
@@ -27,7 +28,7 @@ export default function OversightOverview() {
       <OversightTabs />
       <p className="msg">{t('ovAdvisory')}</p>
       <MonthPicker month={month} onChange={setMonth} />
-      {rep === null ? <p className="msg">{t('loading')}</p> : (
+      {rep === null ? <Loading /> : (
         <>
           {(['t1', 't2'] as const).map((tier) => { const x = rep.tiers[tier]; return (
             <section className="card" key={tier} aria-labelledby={`h-${tier}`}>
@@ -55,7 +56,7 @@ export default function OversightOverview() {
       <section className="card" aria-labelledby="h-stale">
         <h2 id="h-stale">{t('ovStale')}</h2>
         {stale && <p className="msg">{t('ovStaleHint').replace('{h}', String(stale.thresholdHours))}</p>}
-        {stale === null ? <p className="msg">{t('loading')}</p> : stale.claims.length === 0 ? <div className="empty">{t('ovNoStale')}</div> : (
+        {stale === null ? <Loading /> : stale.claims.length === 0 ? <div className="empty">{t('ovNoStale')}</div> : (
           <table className="table">
             <thead><tr><th>{t('rvTitle')}</th><th>{t('ovAccountCol')}</th><th>{t('ovHeld')}</th><th>{t('ovReleaseReason')}</th><th /></tr></thead>
             <tbody>{stale.claims.map((c: any) => (
