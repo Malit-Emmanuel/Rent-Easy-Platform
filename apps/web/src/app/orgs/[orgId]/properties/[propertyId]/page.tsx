@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Fragment, FormEvent, useCallback, useEffect, useState } from 'react';
 import FilePanel from '@/components/FilePanel';
+import ListingPanel, { STATUS_KEY, statusClass } from '@/components/ListingPanel';
 import { useI18n } from '@/components/I18n';
 import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
@@ -21,6 +22,9 @@ export default function PropertyPage() {
   const [label, setLabel] = useState(''), [beds, setBeds] = useState('1'), [floor, setFloor] = useState(''), [editFloor, setEditFloor] = useState('');
   const [editing, setEditing] = useState<string | null>(null), [editLabel, setEditLabel] = useState(''), [editBeds, setEditBeds] = useState('');
   const [note, setNote] = useState(''), [error, setError] = useState(''), [mediaFor, setMediaFor] = useState<string | null>(null);
+  const [listings, setListings] = useState<any[]>([]), [listingFor, setListingFor] = useState<string | null>(null);
+  // The listing that matters for a unit: its open one, otherwise the most recent (the API returns newest first).
+  const listingOf = (unitId: string) => { const mine = listings.filter((l) => l.unitId === unitId); return mine.find((l) => ['draft', 'published', 'stale'].includes(l.status)) ?? mine[0] ?? null; };
 
   const load = useCallback(async () => {
     const r = await api(base);
@@ -28,10 +32,11 @@ export default function PropertyPage() {
     const d = r.data; setP(d); setName(d.name); setAddress(d.addressText); setNodeId(d.nodeId ? String(d.nodeId) : ''); setLat(d.latitude ?? '' + ''); setLon(d.longitude ?? '' + '');
     if (d.latitude === null) { setLat(''); setLon(''); } else { setLat(String(d.latitude)); setLon(String(d.longitude)); }
     setUnits((await api(`${base}/units`)).data ?? []);
+    setListings((await api(`orgs/${orgId}/listings?propertyId=${propertyId}`)).data ?? []);
     setNodes((await api('nodes')).data ?? []);
     const me = await api('me'); const roles: string[] = (me.data?.memberships ?? []).filter((m: any) => m.orgId === orgId).map((m: any) => m.role);
     setCanWrite(roles.length > 0); setCanArchive(roles.some((x) => x === 'manager_admin' || x === 'landlord'));
-  }, [base, orgId]);
+  }, [base, orgId, propertyId]);
   useEffect(() => { load(); }, [load]);
 
   async function save(e: FormEvent) {
@@ -94,7 +99,7 @@ export default function PropertyPage() {
       <h2>{t('units')}</h2>
       {units.length === 0 ? <div className="empty">{t('noUnits')}</div> : (
         <table className="table">
-          <thead><tr><th>{t('unitLabel')}</th><th>{t('floor')}</th><th>{t('bedrooms')}</th><th /></tr></thead>
+          <thead><tr><th>{t('unitLabel')}</th><th>{t('floor')}</th><th>{t('bedrooms')}</th><th>{t('ls_listing')}</th><th /></tr></thead>
           <tbody>
             {units.map((u) => (
               <Fragment key={u.id}>
@@ -103,13 +108,15 @@ export default function PropertyPage() {
                     <>
                       <td><input aria-label={t('unitLabel')} value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={40} /></td>
                       <td><input aria-label={t('floor')} value={editFloor} onChange={(e) => setEditFloor(e.target.value)} maxLength={20} /></td>
-                      <td><input aria-label={t('bedrooms')} inputMode="numeric" value={editBeds} onChange={(e) => setEditBeds(e.target.value)} /></td>
+                      <td><input aria-label={t('bedrooms')} inputMode="numeric" value={editBeds} onChange={(e) => setEditBeds(e.target.value)} /></td><td />
                       <td className="actions"><button type="button" onClick={() => saveUnit(u.id)}>{t('save')}</button><button type="button" className="link" onClick={() => setEditing(null)}>{t('cancel')}</button></td>
                     </>
                   ) : (
                     <>
                       <td><strong>{u.label}</strong></td><td>{u.floor ?? '–'}</td><td>{u.bedrooms === 0 ? t('bedsitter') : u.bedrooms}</td>
+                      <td>{(() => { const l = listingOf(u.id); return l ? <span className={`vstate ${statusClass(l.status)}`}>{t(STATUS_KEY[l.status] as any)}</span> : <span className="msg">{t('ls_notListed')}</span>; })()}</td>
                       <td className="actions">
+                        <button type="button" className="link" onClick={() => setListingFor(listingFor === u.id ? null : u.id)}>{t('ls_listing')}</button>
                         <button type="button" className="link" onClick={() => setMediaFor(mediaFor === u.id ? null : u.id)}>{t('mediaToggle')}</button>
                         {canWrite && <button type="button" className="link" onClick={() => { setEditing(u.id); setEditLabel(u.label); setEditBeds(String(u.bedrooms)); setEditFloor(u.floor ?? ''); }}>{t('edit')}</button>}
                         {canArchive && <button type="button" className="link" onClick={() => archiveUnit(u.id)}>{t('archive')}</button>}
@@ -117,7 +124,8 @@ export default function PropertyPage() {
                     </>
                   )}
                 </tr>
-                {mediaFor === u.id && <tr><td colSpan={4}><FilePanel orgId={orgId} propertyId={propertyId} unitId={u.id} kinds={['photo', 'video']} canWrite={canWrite} canArchive={canArchive} /></td></tr>}
+                {listingFor === u.id && <tr><td colSpan={5}><ListingPanel orgId={orgId} propertyId={propertyId} unitId={u.id} listing={listingOf(u.id)} canWrite={canWrite} onChange={load} /></td></tr>}
+                {mediaFor === u.id && <tr><td colSpan={5}><FilePanel orgId={orgId} propertyId={propertyId} unitId={u.id} kinds={['photo', 'video']} canWrite={canWrite} canArchive={canArchive} /></td></tr>}
               </Fragment>
             ))}
           </tbody>

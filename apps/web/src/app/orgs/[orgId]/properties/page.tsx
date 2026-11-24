@@ -50,6 +50,7 @@ export default function Properties() {
           {[...new Set((items ?? []).map((p) => p.nodeName).filter(Boolean))].sort().map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <span className="spacer" />
+        <Link className="link" href={`/orgs/${orgId}/listings`}>{t('ls_listings')}</Link>
         {canWrite && <Link className="btn" href={`/orgs/${orgId}/properties/import`}>{t('importLink')}</Link>}
       </div>
       {items === null ? <Loading /> : items.length === 0 ? <EmptyState title={t('emptyPropsTitle')}>{t('emptyPropsBody')}</EmptyState> : (() => {

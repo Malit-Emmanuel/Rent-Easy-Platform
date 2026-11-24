@@ -77,6 +77,7 @@ export class SupplyService {
       await c.query('BEGIN');
       const r = await c.query(`UPDATE supply.properties SET archived_at=now(), updated_at=now() WHERE id=$1 AND org_id=$2 AND archived_at IS NULL RETURNING id`, [propertyId, orgId]);
       if (!r.rows[0]) { await c.query('ROLLBACK'); throw new NotFoundException('Property not found'); }
+      await c.query(`UPDATE supply.listings SET status='withdrawn', updated_at=now() WHERE status IN ('draft','published','stale') AND unit_id IN (SELECT id FROM supply.units WHERE property_id=$1)`, [propertyId]);
       await c.query(`UPDATE supply.units SET archived_at=now(), updated_at=now() WHERE property_id=$1 AND archived_at IS NULL`, [propertyId]);
       await c.query('COMMIT');
     } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e; } finally { c.release(); }
@@ -125,6 +126,8 @@ export class SupplyService {
     await this.assertProperty(orgId, propertyId);
     const r = await this.pool.query(`UPDATE supply.units SET archived_at=now(), updated_at=now() WHERE id=$1 AND property_id=$2 AND archived_at IS NULL RETURNING id`, [unitId, propertyId]);
     if (!r.rows[0]) throw new NotFoundException('Unit not found');
+    // An archived unit cannot stay on offer.
+    await this.pool.query(`UPDATE supply.listings SET status='withdrawn', updated_at=now() WHERE unit_id=$1 AND status IN ('draft','published','stale')`, [unitId]);
     await this.audit.record({ actorId, action: 'unit.archived', subjectType: 'unit', subjectId: unitId, metadata: { orgId, propertyId } });
   }
 }
