@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Fragment, FormEvent, useCallback, useEffect, useState } from 'react';
 import FilePanel from '@/components/FilePanel';
-import ListingPanel, { STATUS_KEY, statusClass } from '@/components/ListingPanel';
+import ListingPanel, { statusClass, statusKey } from '@/components/ListingPanel';
 import { useI18n } from '@/components/I18n';
 import Loading from '@/components/Loading';
 import PageHead from '@/components/PageHead';
@@ -114,7 +114,7 @@ export default function PropertyPage() {
                   ) : (
                     <>
                       <td><strong>{u.label}</strong></td><td>{u.floor ?? '–'}</td><td>{u.bedrooms === 0 ? t('bedsitter') : u.bedrooms}</td>
-                      <td>{(() => { const l = listingOf(u.id); return l ? <span className={`vstate ${statusClass(l.status)}`}>{t(STATUS_KEY[l.status] as any)}</span> : <span className="msg">{t('ls_notListed')}</span>; })()}</td>
+                      <td>{(() => { const l = listingOf(u.id); return l ? <span className={`vstate ${statusClass(l.status, l.phase)}`}>{t(statusKey(l) as any)}</span> : <span className="msg">{t('ls_notListed')}</span>; })()}</td>
                       <td className="actions">
                         <button type="button" className="link" onClick={() => setListingFor(listingFor === u.id ? null : u.id)}>{t('ls_listing')}</button>
                         <button type="button" className="link" onClick={() => setMediaFor(mediaFor === u.id ? null : u.id)}>{t('mediaToggle')}</button>

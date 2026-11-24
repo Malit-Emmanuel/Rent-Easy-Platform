@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ALLOWED, checkCosts, missingCosts, totalMoveIn } from './listings.rules';
+import { ALLOWED, checkCosts, missingCosts, phaseOf, totalMoveIn } from './listings.rules';
 
 const full = { rent: 45000, deposit: 90000, utilityDeposit: 5000, serviceCharge: 3000, agentFee: 0 };
 
@@ -26,4 +26,12 @@ test('totalMoveIn is the sum of all five and is null until every cost is entered
 test('status rules: only a draft can be published; a let or withdrawn listing is final', () => {
   assert.deepEqual(ALLOWED.publish, ['draft']);
   for (const a of Object.values(ALLOWED)) { assert.ok(!a.includes('let')); assert.ok(!a.includes('withdrawn')); }
+});
+
+test('phaseOf: fine before 14 days, reminder from 14, hidden from 21', () => {
+  const now = new Date('2026-12-01T12:00:00Z'); const ago = (d: number) => new Date(now.getTime() - d * 86_400_000 + 1000);
+  assert.equal(phaseOf(ago(13), now), 'ok');
+  assert.equal(phaseOf(new Date(now.getTime() - 14 * 86_400_000), now), 'remind');
+  assert.equal(phaseOf(ago(20), now), 'remind');
+  assert.equal(phaseOf(new Date(now.getTime() - 21 * 86_400_000), now), 'hide');
 });

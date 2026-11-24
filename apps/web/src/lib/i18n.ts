@@ -381,6 +381,9 @@ export const dict = {
     ls_noneTitle: 'No listings yet', ls_noneBody: 'Open a property, choose "Listing" on a unit and start one.', ls_all: 'All',
     ls_notPublicYet: 'Tenants cannot see listings yet. Search opens in a later step, after our lawyer has reviewed it.',
     ls_amountsOnly: 'Enter whole numbers of shillings only.', ls_missingCosts: 'Enter all five costs first.',
+    ls_stRemind: 'Confirm soon', ls_remindNote: 'Please confirm that this is still available. If it is not confirmed in time, it is taken off offer automatically.',
+    ls_staleNote: 'This listing was not confirmed in time and is no longer offered. Confirm it to offer it again.',
+    ls_needAttention: 'Some listings need to be confirmed soon or are no longer offered. Open them and press "Confirm it is still available".',
   },
   sw: {
     appName: 'Edupato Homes', appTagline: 'Nyumba zilizothibitishwa', importNav: 'Leta', bedsitter: 'Bedsitter / studio', overview: 'Muhtasari', yourOrgs: 'Mashirika yako', totalProperties: 'Mali', totalUnits: 'Vyumba', nextStep: 'Hatua inayofuata', nextImport: 'Ongeza mali na vyumba vyako', nextImportHint: 'Leta lahajedwali, au ongeza moja moja.', search: 'Tafuta mali', allAreas: 'Maeneo yote', noMatches: 'Hakuna mali zinazolingana.', devNotice: 'Hali ya majaribio: nambari za kuingia hazitumwi kwa SMS bado. Zinaonekana kwenye kumbukumbu za seva.', unverifiedTag: 'Haijathibitishwa', signIn: 'Ingia', signOut: 'Toka', language: 'Lugha',
@@ -760,6 +763,9 @@ export const dict = {
     ls_noneTitle: 'Bado hakuna matangazo', ls_noneBody: 'Fungua mali, chagua "Tangazo" kwenye nyumba kisha uanze.', ls_all: 'Zote',
     ls_notPublicYet: 'Wapangaji bado hawawezi kuona matangazo. Utafutaji utafunguliwa hatua ya baadaye, baada ya wakili wetu kuyapitia.',
     ls_amountsOnly: 'Weka namba nzima za shilingi tu.', ls_missingCosts: 'Weka gharama zote tano kwanza.',
+    ls_stRemind: 'Thibitisha hivi karibuni', ls_remindNote: 'Tafadhali thibitisha kama bado inapatikana. Isipothibitishwa kwa wakati, itaondolewa kwenye matangazo yanayoonekana moja kwa moja.',
+    ls_staleNote: 'Tangazo hili halikuthibitishwa kwa wakati na halitolewi tena. Lithibitishe ili litolewe tena.',
+    ls_needAttention: 'Baadhi ya matangazo yanahitaji kuthibitishwa hivi karibuni au hayatolewi tena. Yafungue na ubonyeze "Thibitisha bado inapatikana".',
   },
 } as const;
 export type Key = keyof typeof dict.en;

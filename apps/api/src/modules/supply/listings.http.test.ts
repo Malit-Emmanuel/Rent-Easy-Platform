@@ -126,6 +126,33 @@ t('listings over HTTP: five-cost rule, one open listing per unit, confirm, let, 
       assert.equal(open, 0);
     });
 
+    await ctx.test('hide-stale job: only a published listing unconfirmed for 21 days is hidden; confirming brings it back', async () => {
+      const { ListingsService } = await import('./listings.service');
+      const svc = h.app.get(ListingsService);
+      const unit = (await h.call('POST', `/orgs/${orgA.id}/properties`, { name: 'Stale Court', addressText: 'Old Road' }, admin.accessToken)).body;
+      const mk = async (label: string, days: number, status = 'published') => {
+        const u = (await h.call('POST', `/orgs/${orgA.id}/properties/${unit.id}/units`, { label, bedrooms: 1 }, admin.accessToken)).body;
+        const d = (await create2(unit.id, u.id, costs)).body;
+        await h.call('POST', L(`/${d.id}/publish`), undefined, admin.accessToken);
+        await h.pool.query(`UPDATE supply.listings SET last_confirmed_at = now() - ($2::int * interval '1 day') WHERE id=$1`, [d.id, days]);
+        if (status !== 'published') await h.pool.query(`UPDATE supply.listings SET status=$2 WHERE id=$1`, [d.id, status]);
+        return d.id as string;
+      };
+      const create2 = (pid: string, uid: string, body: any) => h.call('POST', `/orgs/${orgA.id}/properties/${pid}/units/${uid}/listings`, body, admin.accessToken);
+      const fresh = await mk('S1', 3), remind = await mk('S2', 15), old = await mk('S3', 22), letOld = await mk('S4', 40, 'let');
+      assert.equal((await h.call('GET', L(`/${remind}`), undefined, admin.accessToken)).body.phase, 'remind', 'reminder phase is shown from day 14');
+      assert.equal((await h.call('GET', L(`/${fresh}`), undefined, admin.accessToken)).body.phase, 'ok');
+      const n = await svc.hideStale();
+      assert.ok(n >= 1);
+      const st = async (id: string) => (await h.pool.query(`SELECT status FROM supply.listings WHERE id=$1`, [id])).rows[0].status;
+      assert.equal(await st(fresh), 'published'); assert.equal(await st(remind), 'published'); assert.equal(await st(old), 'stale'); assert.equal(await st(letOld), 'let', 'a let listing is left alone');
+      assert.equal(await svc.hideStale(), 0, 'running it again changes nothing');
+      const ev = (await h.pool.query(`SELECT actor_id FROM governance.audit_events WHERE action='listing.hidden_stale' AND subject_id=$1`, [old])).rows;
+      assert.equal(ev.length, 1); assert.equal(ev[0].actor_id, null, 'recorded as a system action');
+      const back = await h.call('POST', L(`/${old}/confirm`), undefined, admin.accessToken);
+      assert.equal(back.status, 201); assert.equal(back.body.status, 'published'); assert.equal(back.body.phase, 'ok');
+    });
+
     await ctx.test('audit: every step is recorded and the chain still verifies', async () => {
       const ev = (await h.pool.query(`SELECT action, count(*)::int n FROM governance.audit_events WHERE subject_type='listing' AND metadata->>'orgId'=$1 GROUP BY action`, [orgA.id])).rows;
       const got = Object.fromEntries(ev.map((e: any) => [e.action, e.n]));

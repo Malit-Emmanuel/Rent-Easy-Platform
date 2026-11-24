@@ -47,3 +47,10 @@ export const totalMoveIn = (c: Partial<Record<CostKey, number | null>>): number 
 
 export const missingCosts = (c: Partial<Record<CostKey, number | null>>): CostKey[] =>
   (Object.keys(COST_KEYS) as CostKey[]).filter((k) => typeof c[k] !== 'number');
+
+export type Phase = 'ok' | 'remind' | 'hide';
+/** Where a live listing stands in its confirmation cycle: fine, due for a reminder (14 days) or due to be hidden (21 days). */
+export function phaseOf(lastConfirmedAt: Date | string, now: Date = new Date()): Phase {
+  const days = (now.getTime() - new Date(lastConfirmedAt).getTime()) / 86_400_000;
+  return days >= HIDE_AFTER_DAYS ? 'hide' : days >= REMIND_AFTER_DAYS ? 'remind' : 'ok';
+}

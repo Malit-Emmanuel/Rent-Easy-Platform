@@ -6,6 +6,7 @@ import { AuthService } from '../auth/auth.service';
 import { IdentityVerificationService } from '../identity/identity.service';
 import { T2RetentionService } from '../verification/t2.retention';
 import { IntegrityService } from '../integrity/integrity.service';
+import { ListingsService } from '../supply/listings.service';
 
 export const QUEUE_NAME = 'maintenance';
 
@@ -24,6 +25,7 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
     { name: 'purge-auth-data', everyMs: 24 * 60 * 60 * 1000 },
     { name: 'purge-t2-videos', everyMs: 24 * 60 * 60 * 1000 },
     { name: 'integrity-scan', everyMs: 24 * 60 * 60 * 1000 },
+    { name: 'hide-stale-listings', everyMs: 60 * 60 * 1000 },
   ];
 
   constructor(
@@ -31,12 +33,14 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
     @Inject(AuthService) auth: AuthService,
     @Inject(T2RetentionService) t2Retention: T2RetentionService,
     @Inject(IntegrityService) integrity: IntegrityService,
+    @Inject(ListingsService) listings: ListingsService,
   ) {
     this.handlers = {
       'expire-verifications': () => identity.expireStale(),
       'purge-auth-data': () => auth.purgeExpired(),
       'purge-t2-videos': () => t2Retention.purge(),
       'integrity-scan': () => integrity.scan(),
+      'hide-stale-listings': () => listings.hideStale(),
     };
   }
 

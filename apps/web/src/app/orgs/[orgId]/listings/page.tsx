@@ -6,7 +6,7 @@ import { useI18n } from '@/components/I18n';
 import Loading from '@/components/Loading';
 import EmptyState from '@/components/EmptyState';
 import PageHead from '@/components/PageHead';
-import { STATUS_KEY, statusClass } from '@/components/ListingPanel';
+import { STATUS_KEY, statusClass, statusKey } from '@/components/ListingPanel';
 import { api } from '@/lib/client';
 
 const kes = (n: number | null) => (n === null ? '–' : `KES ${n.toLocaleString('en-KE')}`);
@@ -27,6 +27,7 @@ export default function Listings() {
     <>
       <PageHead back={{ href: `/orgs/${orgId}/properties`, label: t('properties') }} eyebrow={t('overview')} title={t('ls_listings')} />
       <p className="msg">{t('ls_notPublicYet')}</p>
+      {(items ?? []).some((l) => l.status === 'stale' || l.phase === 'remind') && <p className="error" role="status">{t('ls_needAttention')}</p>}
       <div className="toolbar">
         <select aria-label={t('ls_all')} value={status} onChange={(e) => { setItems(null); setStatus(e.target.value); }}>
           <option value="">{t('ls_all')}</option>
@@ -41,7 +42,7 @@ export default function Listings() {
               <tr key={l.id}>
                 <td><Link href={`/orgs/${orgId}/properties/${l.propertyId}`}><strong>{l.propertyName}</strong></Link>{l.nodeName ? <div className="msg">{l.nodeName}</div> : null}</td>
                 <td>{l.unitLabel}</td><td>{l.bedrooms === 0 ? t('bedsitter') : l.bedrooms}</td><td>{kes(l.totalMoveIn)}</td>
-                <td><span className={`vstate ${statusClass(l.status)}`}>{t(STATUS_KEY[l.status] as any)}</span></td>
+                <td><span className={`vstate ${statusClass(l.status, l.phase)}`}>{t(statusKey(l) as any)}</span></td>
               </tr>
             ))}
           </tbody>

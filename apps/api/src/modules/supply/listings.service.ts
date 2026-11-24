@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { AuditService, PG_POOL } from '../audit/audit.service';
-import { addDays, ALLOWED, COST_KEYS, CostKey, CostsInput, HIDE_AFTER_DAYS, ListingStatus, missingCosts, OPEN, REMIND_AFTER_DAYS, totalMoveIn } from './listings.rules';
+import { addDays, ALLOWED, COST_KEYS, CostKey, CostsInput, HIDE_AFTER_DAYS, ListingStatus, missingCosts, OPEN, phaseOf, REMIND_AFTER_DAYS, totalMoveIn } from './listings.rules';
 
 // One row per listing, with the five costs folded in (whole shillings; null until entered).
 const LISTING_SELECT = `
@@ -26,6 +26,8 @@ function shape(r: any) {
     ...rest, costs, totalMoveIn: totalMoveIn(costs),
     remindAt: live && r.lastConfirmedAt ? addDays(new Date(r.lastConfirmedAt), REMIND_AFTER_DAYS) : null,
     hideAt: live && r.lastConfirmedAt ? addDays(new Date(r.lastConfirmedAt), HIDE_AFTER_DAYS) : null,
+    /** 'remind' once 14 days have passed without a confirmation; the screens show "Confirm soon". */
+    phase: r.status === 'published' && r.lastConfirmedAt ? phaseOf(r.lastConfirmedAt) : null,
   };
 }
 
@@ -110,6 +112,19 @@ export class ListingsService {
     await this.pool.query(`UPDATE supply.listings SET status='published', published_at=now(), last_confirmed_at=now(), updated_at=now() WHERE id=$1 AND status='draft'`, [listingId]);
     await this.audit.record({ actorId, action: 'listing.published', subjectType: 'listing', subjectId: listingId, metadata: { orgId, totalMoveIn: cur.totalMoveIn } });
     return this.get(orgId, listingId);
+  }
+
+  /**
+   * Scheduled job: a published listing not confirmed for 21 days stops being offered (status 'stale').
+   * Nothing is deleted; the manager confirms it again to bring it back. Each change is written to the audit trail by the system.
+   */
+  async hideStale(): Promise<number> {
+    const r = await this.pool.query(
+      `UPDATE supply.listings SET status='stale', updated_at=now()
+        WHERE status='published' AND last_confirmed_at < now() - ($1::int * interval '1 day')
+        RETURNING id, last_confirmed_at`, [HIDE_AFTER_DAYS]);
+    for (const row of r.rows) await this.audit.record({ action: 'listing.hidden_stale', subjectType: 'listing', subjectId: row.id, metadata: { lastConfirmedAt: row.last_confirmed_at, afterDays: HIDE_AFTER_DAYS } });
+    return r.rowCount ?? 0;
   }
 
   async confirm(orgId: string, listingId: string, actorId: string) {

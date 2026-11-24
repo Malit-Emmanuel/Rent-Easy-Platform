@@ -33,7 +33,7 @@ redisTest('scheduler registers, and a queued job runs through Redis and does rea
   const { JobsService } = await import('./jobs.service');
   const jobs = h.app.get(JobsService);
   const names = await jobs.schedulerNames();
-  assert.deepEqual(names.sort(), ['expire-verifications', 'integrity-scan', 'purge-auth-data', 'purge-t2-videos']);
+  assert.deepEqual(names.sort(), ['expire-verifications', 'hide-stale-listings', 'integrity-scan', 'purge-auth-data', 'purge-t2-videos']);
 
   const u = await h.login(); const uid = await h.userId(u.p);
   const id = (await h.pool.query(`INSERT INTO identity.verification_sessions (id, user_id, provider, status, provider_session_id, expires_at)
@@ -49,7 +49,7 @@ test('without REDIS_URL, jobs are disabled rather than crashing', async () => {
   const { JobsService } = await import('./jobs.service');
   const saved = process.env.REDIS_URL; delete process.env.REDIS_URL;
   try {
-    const j = new JobsService({} as any, {} as any);
+    const j = new JobsService({} as any, {} as any, {} as any, {} as any, {} as any);
     await j.onModuleInit();
     await assert.rejects(() => j.runNow('purge-auth-data'), /disabled/);
     assert.deepEqual(await j.schedulerNames(), []);
@@ -60,7 +60,7 @@ test('an unreachable Redis does not block or crash startup', async () => {
   const { JobsService } = await import('./jobs.service');
   const saved = process.env.REDIS_URL; process.env.REDIS_URL = 'redis://127.0.0.1:1';   // nothing listens here
   try {
-    const j = new JobsService({} as any, {} as any);
+    const j = new JobsService({} as any, {} as any, {} as any, {} as any, {} as any);
     const t0 = Date.now(); await j.onModuleInit();
     assert.ok(Date.now() - t0 < 8000, 'startup returned promptly');
     await assert.rejects(() => j.runNow('purge-auth-data'), /disabled/);

@@ -5,7 +5,9 @@ import { api } from '@/lib/client';
 
 const FIELDS = ['rent', 'deposit', 'utilityDeposit', 'serviceCharge', 'agentFee'] as const;
 export const STATUS_KEY: Record<string, string> = { draft: 'ls_stDraft', published: 'ls_stPublished', stale: 'ls_stStale', let: 'ls_stLet', withdrawn: 'ls_stWithdrawn' };
-export const statusClass = (s: string) => (s === 'published' ? 'ok' : s === 'stale' ? 'wait' : s === 'withdrawn' ? 'bad' : '');
+/** A published listing that has gone 14 days without a confirmation is shown as "Confirm soon" until it is confirmed or hidden at 21 days. */
+export const statusKey = (l: { status: string; phase?: string | null }) => (l.status === 'published' && l.phase === 'remind' ? 'ls_stRemind' : STATUS_KEY[l.status]);
+export const statusClass = (s: string, phase?: string | null) => (s === 'published' && phase === 'remind' ? 'wait' : s === 'published' ? 'ok' : s === 'stale' ? 'wait' : s === 'withdrawn' ? 'bad' : '');
 const kes = (n: number | null) => (n === null || n === undefined ? '–' : `KES ${n.toLocaleString('en-KE')}`);
 const day = (d: string | null) => (d ? new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '–');
 
@@ -40,7 +42,7 @@ export default function ListingPanel({ orgId, propertyId, unitId, listing, canWr
   if (!open) {
     return (
       <div className="panel" aria-label={t('ls_listing')}>
-        {listing && <p className="msg"><span className={`vstate ${statusClass(listing.status)}`}>{t(STATUS_KEY[listing.status] as any)}</span></p>}
+        {listing && <p className="msg"><span className={`vstate ${statusClass(listing.status)}`}>{t(statusKey(listing) as any)}</span></p>}
         {canWrite ? <button type="button" onClick={start} disabled={busy}>{t('ls_start')}</button> : <p className="msg">{t('ls_notListed')}</p>}
         {error && <p className="error" role="alert">{error}</p>}
       </div>
@@ -48,9 +50,13 @@ export default function ListingPanel({ orgId, propertyId, unitId, listing, canWr
   }
   return (
     <form className="panel" onSubmit={saveCosts} aria-label={t('ls_listing')}>
-      <p><span className={`vstate ${statusClass(listing.status)}`}>{t(STATUS_KEY[listing.status] as any)}</span></p>
+      <p><span className={`vstate ${statusClass(listing.status, listing.phase)}`}>{t(statusKey(listing) as any)}</span></p>
       {listing.status !== 'draft' && (
         <p className="msg">{t('ls_confirmedOn')}: {day(listing.lastConfirmedAt)} · {t('ls_remindBy')} {day(listing.remindAt)} · {t('ls_hiddenOn')} {day(listing.hideAt)}</p>
+      )}
+      {listing.status === 'stale' && <p className="error" role="status">{t('ls_staleNote')}</p>}
+      {listing.status === 'published' && listing.phase === 'remind' && (
+        <p className="msg" role="status"><strong>{t('ls_remindNote')}</strong></p>
       )}
       <p className="msg">{t('ls_costsIntro')}</p>
       {FIELDS.map((f) => (
